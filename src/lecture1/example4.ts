@@ -1,21 +1,33 @@
-import OpenAI from "openai";
+import OpenAI from 'openai';
 
-process.env.OPENAI_API_KEY ||= "<ここにOpenAIのAPIキーを貼り付けてください>";
+process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
 const client = new OpenAI();
 
 const response = await client.responses.create({
-  model: "gpt-4o-mini",
+  model: 'gpt-5-nano',
   input: [
     {
-      role: "developer",
-      content: "Talk like a pirate.",
+      role: 'user',
+      content: 'おはよう',
     },
     {
-      role: "user",
-      content: "Are semicolons optional in JavaScript?",
+      role: 'assistant',
+      content: 'Good morning',
+    },
+    {
+      role: 'user',
+      content: 'こんにちは',
+    },
+    {
+      role: 'assistant',
+      content: 'Hello',
+    },
+    {
+      role: 'user',
+      content: 'こんばんは',
     },
   ],
 });
-// GPT-4o Miniの応答を表示
+// GPT-5 Nanoの応答を表示
 console.log(response.output_text);
