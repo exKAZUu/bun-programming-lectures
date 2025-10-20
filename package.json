@@ -1,0 +1,14 @@
+{
+  "name": "bunprogramminglectures",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "1.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "openai": "^6.5.0"
+  }
+}
