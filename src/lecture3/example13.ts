@@ -1,22 +1,24 @@
-import { Agent, MCPServerStreamableHttp, run } from '@openai/agents';
+import { Agent, MCPServerStdio, run } from '@openai/agents';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
-const mcpServer = new MCPServerStreamableHttp({
-  name: 'Find a Domain MCP Server',
-  url: 'https://api.findadomain.dev/mcp',
+const mcpServer = new MCPServerStdio({
+  name: 'Excel MCP Server',
+  fullCommand: 'npx --yes @negokaz/excel-mcp-server',
 });
 await mcpServer.connect();
 
 try {
   const agent = new Agent({
-    name: 'Domain Assistant',
-    instructions:
-      'あなたはドメイン名の空き状況を調べるアシスタントです。findadomain MCP サーバーのツールを使ってドメインの空き状況を確認し、結果を根拠とともに日本語でまとめてください。',
+    name: 'Excel Assistant',
+    instructions: 'あなたはExcel操作を行うアシスタントです。ユーザーの指示に従って、Excelファイルを操作してください。',
     model: 'gpt-5-mini',
     mcpServers: [mcpServer],
   });
-  await runAgent(agent, '早稲田大学とAIに関連するドメイン名で、まだ取得されていないものを3つ教えてください。');
+  await runAgent(
+    agent,
+    '架空の10人分の4科目のテストの点数を生成して、 `/Users/exkazuu/ghq/github.com/exKAZUu/intro-to-ai-agent-dev/src/lecture3/scores.xlsx` というファイルのScoresシートに保存して。'
+  );
 } finally {
   await mcpServer.close();
 }
