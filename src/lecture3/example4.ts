@@ -1,26 +1,36 @@
-import { Agent, MCPServerStdio, run } from '@openai/agents';
+/**
+ * conversationId を使って OpenAIのサーバー上で会話履歴を管理するエージェントの例 (自由入力)
+ */
+
+import { Agent, run } from '@openai/agents';
+import { OpenAI } from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
-async function main() {
-  // 事前に `bun playwright install chromium` を実行しておくこと
-  const mcpServer = new MCPServerStdio({
-    name: 'Playwright MCP Server',
-    fullCommand: `npx --yes @playwright/mcp@latest`,
-  });
-  await mcpServer.connect();
-  try {
-    const agent = new Agent({
-      name: 'Browser Assistant',
-      instructions:
-        'あなたはブラウザ操作を行うアシスタントです。ユーザーの指示に従って、ウェブページを操作してください。',
-      mcpServers: [mcpServer],
-    });
-    const result = await run(agent, '今日の東京の天気を調べて。');
-    console.log(result.finalOutput);
-  } finally {
-    await mcpServer.close();
-  }
+const agent = new Agent({
+  name: 'Assistant',
+  instructions: '簡潔に回答してください。',
+  model: 'gpt-5-nano',
+});
+
+const client = new OpenAI();
+const { id: conversationId } = await client.conversations.create({});
+console.log('conversationId:', conversationId);
+
+for (let i = 0; i < 3; i++) {
+  const userMessage = prompt(`AIへの入力 ${i + 1}/3:`);
+  if (!userMessage) continue;
+
+  const assistantMessage = await continueConversation(userMessage, conversationId);
+  console.log('Output:', assistantMessage, '\n');
 }
 
-main().catch(console.error);
+async function continueConversation(text: string, conversationId: string) {
+  const result = await run(agent, text, { conversationId });
+  return result.finalOutput;
+}
+
+// 入力例:
+// 日本の地理的な中心に位置する都道府県を一つ挙げてください。
+// その南にある都道府県は？
+// その南東は？
