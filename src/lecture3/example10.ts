@@ -1,47 +1,21 @@
-import {
-  Agent,
-  codeInterpreterTool,
-  imageGenerationTool,
-  OpenAIResponsesModel,
-  run,
-  webSearchTool,
-} from '@openai/agents';
-import OpenAI from 'openai';
+import { Agent, codeInterpreterTool, run, webSearchTool } from '@openai/agents';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
-
-const openai = new OpenAI();
-// OpenAIResponsesModel expects the SDK instance from its internal dependency set, so we cast here.
-const model = new OpenAIResponsesModel(
-  openai as unknown as ConstructorParameters<typeof OpenAIResponsesModel>[0],
-  'gpt-4.1'
-);
 
 const agent = new Agent({
   name: 'Hosted tool researcher',
   instructions: `
-あなたはOpenAIが提供するホスト型ツールのみを使って、最新の情報収集・コード実行・画像生成を組み合わせる日本語アシスタントです。
+あなたは与えられたツールを使って、最新の情報収集・コード実行を行う日本語アシスタントです。
 ユーザの依頼に応じて以下の方針を守ってください:
 - インターネット上の最新情報が必要な場合は web_search を用いて信頼できる根拠を集める。
 - 数値計算やデータ整形が必要な場合は code_interpreter を使ってコードを実行し、実行内容と結果を要約する。
-- 図やサムネイルが有用な場合のみ image_generation を使い、生成した画像の用途を説明する。
-最終回答では検索の根拠URL、実行した計算の概要、生成した画像があれば用途を明記し、簡潔にまとめてください。
+最終回答では検索の根拠URLと実行した計算の概要を簡潔にまとめてください。
 `.trim(),
-  model,
-  modelSettings: {
-    temperature: 0,
-  },
-  tools: [
-    webSearchTool({ searchContextSize: 'medium' }),
-    codeInterpreterTool(),
-    imageGenerationTool({ size: '1024x1024', quality: 'medium' }),
-  ],
+  model: 'gpt-5-mini',
+  tools: [webSearchTool({ searchContextSize: 'medium' }), codeInterpreterTool()],
 });
 
-const request =
-  prompt(
-    `調査してほしいテーマやタスクを入力してください（例: 「最新版の炭素排出量動向を分析して見やすい表を作って」）:`
-  )?.trim() ?? '';
+const request = prompt(`調査してほしいテーマやタスクを入力してください:`)?.trim() ?? '';
 if (!request) throw new Error('テーマが入力されませんでした。');
 
 const response = await run(agent, request, { maxTurns: 10 });
@@ -64,4 +38,6 @@ if (typeof finalOutput === 'string') {
   console.log('回答を生成できませんでした。');
 }
 
-// 例: 「2025年の日本における再生可能エネルギー投資動向を調べて、主要な統計を計算し、説明用のサムネイル画像も用意して」 など
+// 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ -> 3,180 × 8,463 = 26,912,340m or 3,180 × 8,465 = 26,982,300m
+// 例2: 日本で6番目に高い山の標高から2025年の自民党の総裁選挙の決選投票における高市早苗氏の得票数を引いた結果は？ -> 3141－185＝2956
+// 例3: 2025年の日本における再生可能エネルギー投資動向を調べて、主要な統計を計算し、Markdown形式で表を出力して
