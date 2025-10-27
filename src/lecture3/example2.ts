@@ -1,5 +1,5 @@
+import type { AgentInputItem } from '@openai/agents';
 import { Agent, run } from '@openai/agents';
-import { OpenAI } from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
@@ -9,19 +9,25 @@ const agent = new Agent({
   model: 'gpt-5-nano',
 });
 
-async function main() {
-  // Create a server-managed conversation:
-  const client = new OpenAI();
-  const { id: conversationId } = await client.conversations.create({});
-  console.log('conversationId:', conversationId);
+let thread: AgentInputItem[] = [];
 
-  const first = await run(agent, '日本の地理的な中心の都道府県を一つ挙げてください。', {
-    conversationId,
-  });
-  console.log(first.finalOutput);
+for (let i = 0; i < 3; i++) {
+  const userMessage = prompt(`AIへの入力 ${i + 1}/3:`);
+  if (!userMessage) continue;
 
-  const second = await run(agent, 'その南にある都道府県は？', { conversationId });
-  console.log(second.finalOutput);
+  const assistantMessage = await continueConversation(userMessage);
+  console.dir(thread, { depth: null });
+  console.log('Output:', assistantMessage, '\n');
 }
 
-main().catch(console.error);
+// 入力例:
+// 日本の地理的な中心に位置する都道府県を一つ挙げてください。
+// その南にある都道府県は？
+// その南東は？
+
+async function continueConversation(text: string) {
+  const result = await run(agent, thread.concat({ role: 'user', content: text }));
+
+  thread = result.history;
+  return result.finalOutput;
+}
