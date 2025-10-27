@@ -8,44 +8,6 @@ const sub = createBinaryOperationTool('sub', '2つの数値を減算します', 
 const mul = createBinaryOperationTool('mul', '2つの数値を乗算します', (term1, term2) => term1 * term2);
 const div = createBinaryOperationTool('div', '2つの数値を除算します', (term1, term2) => term1 / term2);
 
-const agent = new Agent({
-  name: 'Calculator',
-  instructions: `
-あなたはユーザが入力した数式の計算結果を出力するAIです。
-演算子の優先順位を考慮して、提供されている関数ツールを使って少しずつ計算してください。
-全ての計算が終わったら、最終的な計算結果の数値だけを出力してください。
-各ツールは result フィールドに計算結果を返します。
-`.trim(),
-  model: 'gpt-5-mini',
-  modelSettings: {
-    temperature: 0,
-  },
-  tools: [add, sub, mul, div],
-});
-
-const userMessage = prompt(`数式を入力してください:`);
-if (!userMessage) throw new Error('数式が入力されませんでした。');
-
-const response = await run(agent, userMessage, { maxTurns: 10 });
-
-if (response.newItems.length > 0) {
-  console.log('\n=== 生成されたアイテム ===\n');
-  console.dir(
-    response.newItems.map((item) => item.toJSON()),
-    { depth: null }
-  );
-}
-
-const finalOutput = response.finalOutput;
-console.log('\n=== 最終結果 ===\n');
-if (typeof finalOutput === 'string') {
-  console.log(finalOutput);
-} else if (finalOutput != null) {
-  console.log(JSON.stringify(finalOutput));
-} else {
-  console.log('結果を生成できませんでした。');
-}
-
 function createBinaryOperationTool(
   name: string,
   description: string,
@@ -70,6 +32,41 @@ function createBinaryOperationTool(
       return { result };
     },
   });
+}
+
+const agent = new Agent({
+  name: 'Calculator',
+  instructions: `
+あなたはユーザが入力した数式の計算結果を出力するAIです。
+演算子の優先順位を考慮して、提供されている関数ツールを使って少しずつ計算してください。
+全ての計算が終わったら、最終的な計算結果の数値だけを出力してください。
+各ツールは result フィールドに計算結果を返します。
+`.trim(),
+  model: 'gpt-5-mini',
+  tools: [add, sub, mul, div],
+});
+
+const userMessage = prompt(`数式を入力してください:`);
+if (!userMessage) throw new Error('数式が入力されませんでした。');
+
+const response = await run(agent, userMessage, { maxTurns: 10 });
+
+if (response.newItems.length > 0) {
+  console.log('\n=== 生成されたアイテム ===\n');
+  console.dir(
+    response.newItems.map((item) => item.toJSON()),
+    { depth: null }
+  );
+}
+
+const finalOutput = response.finalOutput;
+console.log('\n=== 最終結果 ===\n');
+if (typeof finalOutput === 'string') {
+  console.log(finalOutput);
+} else if (finalOutput != null) {
+  console.log(JSON.stringify(finalOutput));
+} else {
+  console.log('結果を生成できませんでした。');
 }
 
 // 例1: 5178952 + 25198791 -> 30377743
