@@ -1,7 +1,7 @@
 {
   "name": "intro-to-ai-agent-dev",
-  "description": "A collection of example code for AI Agent Development",
   "private": true,
+  "description": "A collection of example code for AI Agent Development",
   "repository": "github:exKAZUu/intro-to-ai-agent-dev",
   "license": "Apache-2.0",
   "type": "module",

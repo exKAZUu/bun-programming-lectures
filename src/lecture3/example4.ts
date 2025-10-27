@@ -21,13 +21,9 @@ for (let i = 0; i < 3; i++) {
   const userMessage = prompt(`AIへの入力 ${i + 1}/3:`);
   if (!userMessage) continue;
 
-  const assistantMessage = await continueConversation(userMessage, conversationId);
+  const response = await run(agent, userMessage, { conversationId });
+  const assistantMessage = response.finalOutput;
   console.log('Output:', assistantMessage, '\n');
-}
-
-async function continueConversation(text: string, conversationId: string) {
-  const result = await run(agent, text, { conversationId });
-  return result.finalOutput;
 }
 
 // 入力例:
