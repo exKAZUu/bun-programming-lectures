@@ -12,9 +12,12 @@ const llm = new ChatOpenAI({
   model: 'gpt-5-mini',
 });
 
-const hostedToolModel = llm.bindTools([{ type: 'web_search' }, { type: 'code_interpreter' }], {
-  parallel_tool_calls: true,
-});
+const hostedToolModel = llm.bindTools(
+  [{ type: 'web_search' }, { type: 'code_interpreter', container: { type: 'auto' } }],
+  {
+    parallel_tool_calls: true,
+  }
+);
 
 const promptTemplate = ChatPromptTemplate.fromMessages([
   [
