@@ -2,7 +2,7 @@ import { AIMessage, type BaseMessage, HumanMessage } from '@langchain/core/messa
 import { Annotation, END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { ChatOpenAI } from '@langchain/openai';
-import { createAgent, type ReactAgent } from 'langchain';
+import { createAgent, type ReactAgent, type ResponseFormatUndefined } from 'langchain';
 import { z } from 'zod';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -45,8 +45,8 @@ const DomainWorkflowState = Annotation.Root({
   }),
 });
 
-let domainSuggesterAgent: ReactAgent<DomainSuggestion> | undefined;
-let domainSelectorAgent: ReactAgent<DomainSelection> | undefined;
+let domainSuggesterAgent: ReactAgent<ResponseFormatUndefined> | undefined;
+let domainSelectorAgent: ReactAgent<ResponseFormatUndefined> | undefined;
 let domainWorkflowGraph: ReturnType<typeof createDomainWorkflowGraph> | undefined;
 
 type WorkflowInput = { input_as_text: string };
