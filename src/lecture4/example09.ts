@@ -23,8 +23,7 @@ const tools = [tavilySearch];
 const toolMap = new Map(tools.map((tool) => [tool.name, tool] as const));
 
 const llm = new ChatOpenAI({
-  model: 'gpt-4.1',
-  temperature: 0,
+  model: 'gpt-5-mini',
 });
 
 const modelWithTools = llm.bindTools(tools, {
