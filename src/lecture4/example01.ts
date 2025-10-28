@@ -27,7 +27,7 @@ type WorkflowInput = { input_as_text: string };
 // Main code entrypoint
 export const runWorkflow = async (workflow: WorkflowInput) => {
   return await withTrace('Domain check workflow', async () => {
-    const state = {};
+    const _state = {};
     const conversationHistory: AgentInputItem[] = [
       {
         role: 'user',

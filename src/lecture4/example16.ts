@@ -267,7 +267,7 @@ function parseJson<T>(message: AIMessage, schema: z.ZodType<T>, parseErrorMessag
     const jsonText = extractJsonPayload(raw) ?? raw;
     const parsed = schema.parse(JSON.parse(jsonText));
     return parsed;
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`${parseErrorMessage}: ${raw}`);
   }
 }
@@ -316,7 +316,7 @@ function messageContentToString(message: AIMessage): string {
 
 function extractJsonPayload(raw: string): string | null {
   const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (codeBlockMatch && codeBlockMatch[1]) {
+  if (codeBlockMatch?.[1]) {
     return codeBlockMatch[1].trim();
   }
 
