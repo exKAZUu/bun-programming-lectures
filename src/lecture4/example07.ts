@@ -1,4 +1,4 @@
-import type { BaseMessageLike, ContentBlock } from '@langchain/core/messages';
+import { type BaseMessageLike, type ContentBlock, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -15,14 +15,14 @@ const model = new ChatOpenAI({
 const systemInstruction =
   'あなたは高性能な日英翻訳エンジンです。ユーザの入力を英訳して返してください。英訳結果以外を出力しないでください。';
 
-const messages: BaseMessageLike[] = [['system', systemInstruction]];
+const messages: BaseMessageLike[] = [new SystemMessage({ content: systemInstruction })];
 const logs: MessageLog[] = [{ role: 'system', content: systemInstruction }];
 
 for (let i = 0; i < 3; i++) {
   const userMessage = prompt('日英翻訳:');
   if (!userMessage) continue;
 
-  messages.push(['user', userMessage]);
+  messages.push(new HumanMessage({ content: userMessage }));
   logs.push({ role: 'user', content: userMessage });
 
   const response = await model.invoke(messages);

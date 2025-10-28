@@ -1,12 +1,7 @@
-import type { BaseMessageLike, ContentBlock } from '@langchain/core/messages';
+import { type BaseMessageLike, type ContentBlock, HumanMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
-
-type MessageLog = {
-  role: string;
-  content: string;
-};
 
 const model = new ChatOpenAI({
   model: 'gpt-4o-mini',
@@ -14,22 +9,19 @@ const model = new ChatOpenAI({
 });
 
 const messages: BaseMessageLike[] = [];
-const logs: MessageLog[] = [];
 
 for (let i = 0; i < 3; i++) {
   const userMessage = prompt(`AIへの入力 ${i + 1}/3:`);
   if (!userMessage) continue;
 
-  messages.push(['user', userMessage]);
-  logs.push({ role: 'user', content: userMessage });
+  messages.push(new HumanMessage({ content: userMessage }));
 
   const response = await model.invoke(messages);
   const outputText = contentToText(response.content);
 
   messages.push(response);
-  logs.push({ role: 'assistant', content: outputText });
 
-  console.log('Messages:', logs);
+  console.log('Messages:', messages);
   console.log('Output:', outputText, '\n');
 }
 

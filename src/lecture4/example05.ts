@@ -1,4 +1,4 @@
-import type { ContentBlock } from '@langchain/core/messages';
+import { AIMessage, type ContentBlock, HumanMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -8,11 +8,11 @@ const model = new ChatOpenAI({
 });
 
 const response = await model.invoke([
-  ['user', 'おはよう'],
-  ['ai', 'Good morning'],
-  ['user', 'こんにちは'],
-  ['ai', 'Hello'],
-  ['user', 'こんばんは'],
+  new HumanMessage({ content: 'おはよう' }),
+  new AIMessage({ content: 'Good morning' }),
+  new HumanMessage({ content: 'こんにちは' }),
+  new AIMessage({ content: 'Hello' }),
+  new HumanMessage({ content: 'こんばんは' }),
 ]);
 
 console.log(contentToText(response.content));
