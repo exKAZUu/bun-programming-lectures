@@ -5,7 +5,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { AIMessage, ToolMessage } from '@langchain/core/messages';
+import { AIMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { ChatOpenAI } from '@langchain/openai';
@@ -79,7 +79,7 @@ try {
 
 async function runAgent(agent: ReactAgent, prompt: string): Promise<void> {
   const result = await agent.invoke({
-    messages: [{ role: 'user', content: prompt }],
+    messages: [new HumanMessage({ content: prompt })],
   });
 
   const toolMessages = result.messages.filter((message): message is ToolMessage => message instanceof ToolMessage);

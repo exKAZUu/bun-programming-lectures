@@ -3,7 +3,7 @@
  */
 
 import { AIMessage, type ContentBlock } from '@langchain/core/messages';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate } from '@langchain/core/prompts';
 import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -20,17 +20,16 @@ const hostedToolModel = llm.bindTools(
 );
 
 const promptTemplate = ChatPromptTemplate.fromMessages([
-  [
-    'system',
+  SystemMessagePromptTemplate.fromTemplate(
     `
 あなたは与えられたホスト型ツールを使って、最新の情報収集とコード実行を行う日本語アシスタントです。
 ユーザの依頼に応じて以下の方針を守ってください:
 - 最新情報が必要な場合は web_search を用いて信頼できる根拠を集める。
 - 数値計算やデータ整形が必要な場合は code_interpreter を使ってコードを実行し、実行内容と結果を要約する。
 最終回答では検索の根拠URLと実行した計算の概要を簡潔にまとめてください。
-`.trim(),
-  ],
-  ['human', '{input}'],
+`.trim()
+  ),
+  HumanMessagePromptTemplate.fromTemplate('{input}'),
 ]);
 
 const chain = promptTemplate.pipe(hostedToolModel);

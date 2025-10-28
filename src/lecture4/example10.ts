@@ -3,7 +3,14 @@
  * src/lecture2/example15.ts のAgents SDK版をLangChain構成に置き換えたもの。
  */
 
-import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  type BaseMessageLike,
+  type ContentBlock,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
 import { TavilySearch } from '@langchain/tavily';
@@ -47,8 +54,8 @@ const instruction = `
 `.trim();
 
 const messages: BaseMessageLike[] = [
-  ['system', instruction],
-  ['human', question],
+  new SystemMessage({ content: instruction }),
+  new HumanMessage({ content: question }),
 ];
 
 const steps: ToolCallLog[] = [];
