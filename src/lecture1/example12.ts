@@ -1,3 +1,7 @@
+/**
+ * Responses APIのusageフィールドを参照し、入出力トークン数と処理時間を比較する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

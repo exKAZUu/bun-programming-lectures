@@ -1,3 +1,7 @@
+/**
+ * ハードコードしたアシスタント応答を履歴に挿入し、フォローアップ質問に対する挙動を検証する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

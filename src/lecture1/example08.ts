@@ -1,3 +1,7 @@
+/**
+ * Developerロールで翻訳方針を指示し、単発でユーザ入力を英訳するResponses APIの例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

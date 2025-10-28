@@ -1,3 +1,7 @@
+/**
+ * Responses APIで長めの物語生成をリクエストし、まとめて出力する単純な例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

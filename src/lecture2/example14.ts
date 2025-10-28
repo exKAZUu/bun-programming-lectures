@@ -1,3 +1,7 @@
+/**
+ * Tavily検索ツールとResponses APIを組み合わせて最新情報を取得し、LLMに根拠付き回答を生成させる例。
+ */
+
 import { tavily } from '@tavily/core';
 import OpenAI from 'openai';
 

@@ -1,3 +1,7 @@
+/**
+ * 足し算リクエストをJSON形式で出力させ、ホスト側で解析・計算してフィードバックする例 (GPT-4o Mini版)。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

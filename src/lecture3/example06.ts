@@ -1,4 +1,7 @@
-import type { AgentInputItem } from '@openai/agents';
+/**
+ * previousResponseId を使って OpenAIのサーバー上で会話履歴を管理するエージェントの例 (自由入力)
+ */
+
 import { Agent, run } from '@openai/agents';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -9,25 +12,19 @@ const agent = new Agent({
   model: 'gpt-5-nano',
 });
 
-let thread: AgentInputItem[] = [];
+let previousResponseId: string | undefined;
 
 for (let i = 0; i < 3; i++) {
   const userMessage = prompt(`AIへの入力 ${i + 1}/3:`);
   if (!userMessage) continue;
 
-  const assistantMessage = await continueConversation(userMessage);
-  console.dir(thread, { depth: null });
-  console.log('Output:', assistantMessage, '\n');
+  const response = await run(agent, userMessage, previousResponseId ? { previousResponseId } : undefined);
+  previousResponseId = response.lastResponseId;
+  console.log('previousResponseId:', previousResponseId);
+  console.log('Output:', response.finalOutput, '\n');
 }
 
 // 入力例:
 // 日本の地理的な中心に位置する都道府県を一つ挙げてください。
 // その南にある都道府県は？
 // その南東は？
-
-async function continueConversation(text: string) {
-  const result = await run(agent, thread.concat({ role: 'user', content: text }));
-
-  thread = result.history;
-  return result.finalOutput;
-}

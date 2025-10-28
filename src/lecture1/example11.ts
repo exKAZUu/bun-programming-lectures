@@ -1,3 +1,7 @@
+/**
+ * 複数モデルに同じ挨拶を投げ、応答テキストと処理時間を比較する簡易ベンチマーク。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

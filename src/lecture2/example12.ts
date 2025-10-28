@@ -1,3 +1,7 @@
+/**
+ * example11にGPT-5 Miniとreasoning出力への対応を加えた四則演算ファンクションコールの例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

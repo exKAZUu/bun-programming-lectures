@@ -1,3 +1,7 @@
+/**
+ * 2項演算の指示に従わせながら四則演算全体を人力計算で補完する協調的なワークフローの例 (GPT-4.1版)。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

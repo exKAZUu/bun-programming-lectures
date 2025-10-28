@@ -1,3 +1,7 @@
+/**
+ * 会話履歴にユーザと固定のアシスタント発話を埋め込み、後続メッセージに対する応答を取得する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

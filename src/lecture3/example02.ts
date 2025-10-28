@@ -1,9 +1,9 @@
 /**
- * conversationId を使って OpenAIのサーバー上で会話履歴を管理するエージェントの例 (自由入力)
+ * メモリ上で会話履歴を管理するエージェントの例 (自由入力)
  */
 
+import type { AgentInputItem } from '@openai/agents';
 import { Agent, run } from '@openai/agents';
-import { OpenAI } from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
@@ -13,21 +13,19 @@ const agent = new Agent({
   model: 'gpt-5-nano',
 });
 
-const client = new OpenAI();
-const { id: conversationId } = await client.conversations.create({});
-console.log('conversationId:', conversationId);
+let thread: AgentInputItem[] = [];
 
 for (let i = 0; i < 3; i++) {
   const userMessage = prompt(`AIへの入力 ${i + 1}/3:`);
   if (!userMessage) continue;
 
-  const assistantMessage = await continueConversation(userMessage, conversationId);
-  console.log('Output:', assistantMessage, '\n');
-}
+  const response = await run(agent, thread.concat({ role: 'user', content: userMessage }));
 
-async function continueConversation(text: string, conversationId: string) {
-  const result = await run(agent, text, { conversationId });
-  return result.finalOutput;
+  thread = response.history;
+  console.dir(thread, { depth: null });
+
+  const assistantMessage = response.finalOutput;
+  console.log('Output:', assistantMessage, '\n');
 }
 
 // 入力例:

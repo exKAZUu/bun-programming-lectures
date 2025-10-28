@@ -1,3 +1,7 @@
+/**
+ * Responses APIのfunction callでTavily検索と四則演算ツールを同時に扱い、検索結果に基づく計算を行う総合例。
+ */
+
 import { tavily } from '@tavily/core';
 import OpenAI from 'openai';
 import type { ResponseFunctionToolCall } from 'openai/resources/responses/responses';
@@ -227,7 +231,12 @@ async function executeTavilySearch({ query }: { query: string }) {
   }
 }
 
-// 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ -> 3,180 × 8,463 = 26,912,340m
+// 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ ->
+//      3,180 × 8,463 = 26,912,340m or
+//      3,180 × 8,465 = 26,982,300m or
+//      3,180 × 8,481 = 26,969,580m or
+//      3,180 × 8,485 = 26,982,300m
+//      （Webサイトによってマカルーの標高の記載が異なる）
 // 例2: 日本で6番目に高い山の標高から2025年の自民党の総裁選挙の決選投票における高市早苗氏の得票数を引いた結果は？ -> 3141－185＝2956
 
 // `bun run src/lecture1/example07.ts` の応答と比較してみよう！

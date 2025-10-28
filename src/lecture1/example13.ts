@@ -1,3 +1,7 @@
+/**
+ * 大きな乗算問題を複数モデルで実行し、精度とusage情報を比較する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

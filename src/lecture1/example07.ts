@@ -1,3 +1,7 @@
+/**
+ * コンソール入力を使って最大3回までユーザの追加入力を受け取りつつ応答と履歴を蓄積する対話例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

@@ -1,3 +1,7 @@
+/**
+ * Tavily APIを直接呼び出して最新情報検索のレスポンスを取得するシンプルな例。
+ */
+
 import { tavily } from '@tavily/core';
 
 const tvly = tavily();

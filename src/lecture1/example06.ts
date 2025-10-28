@@ -1,3 +1,7 @@
+/**
+ * Responses APIで会話履歴を配列で管理しながらフォローアップ質問を段階的に投げる例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

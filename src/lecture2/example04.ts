@@ -1,3 +1,7 @@
+/**
+ * example03の構成をGPT-5 Miniで実装し、同じ協調計算パターンを別モデルで試す例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

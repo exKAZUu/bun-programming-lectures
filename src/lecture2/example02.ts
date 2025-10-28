@@ -1,3 +1,7 @@
+/**
+ * example01の手順をGPT-4.1に切り替えて反復回数を増やし、振る舞いの違いを観察するバリエーション。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

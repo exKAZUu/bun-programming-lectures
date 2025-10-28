@@ -1,3 +1,7 @@
+/**
+ * Responses APIのfunction call機能で四則演算ツールを呼び出し、結果をフィードバックするループ処理の例 (GPT-4.1版)。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

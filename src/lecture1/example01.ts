@@ -1,3 +1,7 @@
+/**
+ * OpenAI Responses APIを使ってGPT-4o Miniへ単発の挨拶プロンプトを送る最小構成の例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
