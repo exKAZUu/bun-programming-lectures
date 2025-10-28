@@ -50,15 +50,22 @@ function standardContentToText(content: string | ContentBlock[]): string {
     return content;
   }
   return content
-    .map((block) => {
+    .map((block): string => {
       switch (block.type) {
-        case 'text':
-          return block.text;
-        case 'reasoning':
-          return block.reasoning;
+        case 'text': {
+          const { text } = block as { text?: unknown };
+          return typeof text === 'string' ? text : '';
+        }
+        case 'reasoning': {
+          const { reasoning } = block as { reasoning?: unknown };
+          return typeof reasoning === 'string'
+            ? `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`
+            : '';
+        }
         default:
           return '';
       }
     })
+    .filter((part): part is string => part.length > 0)
     .join('');
 }
