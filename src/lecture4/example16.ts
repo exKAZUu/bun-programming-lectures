@@ -184,9 +184,8 @@ async function loadDomainTools() {
       useStandardContentBlocks: true,
       mcpServers: {
         find_a_domain: {
-          transport: 'sse',
+          transport: 'http',
           url: 'https://api.findadomain.dev/mcp',
-          automaticSSEFallback: true,
         },
       },
     });
