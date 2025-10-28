@@ -1,45 +1,81 @@
 /**
- * OpenAIが提供するWeb検索とプログラム実行のツールを使って情報検索の結果に基づいて計算するエージェントの例。
+ * OpenAIが提供するホスト型ツール（Web検索・コード実行）をLangChain経由で利用する例。
  */
 
-import { Agent, codeInterpreterTool, run, webSearchTool } from '@openai/agents';
+import { type ContentBlock, isAIMessage } from '@langchain/core/messages';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
-const agent = new Agent({
-  name: 'Hosted tool researcher',
-  instructions: `
-あなたは与えられたツールを使って、最新の情報収集・コード実行を行う日本語アシスタントです。
+const llm = new ChatOpenAI({
+  model: 'gpt-5-mini',
+  temperature: 0,
+});
+
+const hostedToolModel = llm.bindTools([{ type: 'web_search' }, { type: 'code_interpreter' }], {
+  parallel_tool_calls: true,
+});
+
+const promptTemplate = ChatPromptTemplate.fromMessages([
+  [
+    'system',
+    `
+あなたは与えられたホスト型ツールを使って、最新の情報収集とコード実行を行う日本語アシスタントです。
 ユーザの依頼に応じて以下の方針を守ってください:
-- インターネット上の最新情報が必要な場合は web_search を用いて信頼できる根拠を集める。
+- 最新情報が必要な場合は web_search を用いて信頼できる根拠を集める。
 - 数値計算やデータ整形が必要な場合は code_interpreter を使ってコードを実行し、実行内容と結果を要約する。
 最終回答では検索の根拠URLと実行した計算の概要を簡潔にまとめてください。
 `.trim(),
-  model: 'gpt-5-mini',
-  tools: [webSearchTool({ searchContextSize: 'medium' }), codeInterpreterTool()],
-});
+  ],
+  ['human', '{input}'],
+]);
 
-const request = prompt(`調査してほしいテーマやタスクを入力してください:`)?.trim() ?? '';
+const chain = promptTemplate.pipe(hostedToolModel);
+
+const request = prompt('調査してほしいテーマやタスクを入力してください:')?.trim() ?? '';
 if (!request) throw new Error('テーマが入力されませんでした。');
 
-const response = await run(agent, request, { maxTurns: 10 });
-
-if (response.newItems.length > 0) {
-  console.log('\n=== 生成されたアイテム ===\n');
-  console.dir(
-    response.newItems.map((item) => item.toJSON()),
-    { depth: null }
-  );
+const response = await chain.invoke({ input: request });
+if (!isAIMessage(response)) {
+  throw new Error('LLMからの応答を解釈できませんでした。');
 }
 
-const finalOutput = response.finalOutput;
+printToolCalls(response.additional_kwargs?.tool_calls);
+
 console.log('\n=== 最終結果 ===\n');
-if (typeof finalOutput === 'string') {
-  console.log(finalOutput);
-} else if (finalOutput != null) {
-  console.log(JSON.stringify(finalOutput));
-} else {
-  console.log('回答を生成できませんでした。');
+console.log(contentToText(response.content));
+
+function contentToText(content: string | ContentBlock[]): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  return content
+    .map((block) => {
+      switch (block.type) {
+        case 'text': {
+          const { text } = block as ContentBlock.Text;
+          return text;
+        }
+        case 'reasoning': {
+          const { reasoning } = block as ContentBlock.Reasoning;
+          return `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`;
+        }
+        default:
+          return `\n[${block.type ?? 'unknown'}]\n${JSON.stringify(block)}\n`;
+      }
+    })
+    .filter(Boolean)
+    .join('');
+}
+
+function printToolCalls(toolCalls: unknown) {
+  if (!Array.isArray(toolCalls) || !toolCalls.length) return;
+
+  console.log('\n=== 生成されたツール呼び出し ===\n');
+  toolCalls.forEach((call, index) => {
+    console.log(`[${index + 1}]`, JSON.stringify(call, null, 2), '\n');
+  });
 }
 
 // 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ -> 3,180 × 8,463 = 26,912,340m or 3,180 × 8,465 = 26,982,300m
