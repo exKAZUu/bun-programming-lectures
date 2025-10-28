@@ -14,12 +14,12 @@ if (process.env.OPENAI_API_KEY.includes('<ここにOpenAIのAPIキーを貼り�
 }
 
 const DomainSuggestionSchema = z.object({
-  domain_cnadidates: z.array(z.string()),
-  web_service_content: z.string(),
+  domainCandidates: z.array(z.string()),
+  webServiceContent: z.string(),
 });
 
 const DomainSelectionSchema = z.object({
-  domain_to_register: z.string(),
+  domainToRegister: z.string(),
   reason: z.string(),
 });
 
@@ -74,9 +74,9 @@ export const runWorkflow = async (workflow: WorkflowInput) => {
   return {
     output_text: formatSelectionResult(finalState.selectedDomain, finalState.selectionReason),
     output_parsed: {
-      domain_cnadidates: finalState.suggestions,
-      web_service_content: finalState.webServiceContent ?? workflow.input_as_text,
-      selected_domain: finalState.selectedDomain,
+      domainCandidates: finalState.suggestions,
+      webServiceContent: finalState.webServiceContent ?? workflow.input_as_text,
+      selectedDomain: finalState.selectedDomain,
       reason: finalState.selectionReason,
     },
   };
@@ -106,8 +106,8 @@ async function suggestDomains(state: typeof DomainWorkflowState.State) {
   const suggestion = parseSuggestion(agentState.messages);
   return {
     messages: extractNewMessages(state.messages, agentState.messages),
-    suggestions: suggestion.domain_cnadidates,
-    webServiceContent: suggestion.web_service_content,
+    suggestions: suggestion.domainCandidates,
+    webServiceContent: suggestion.webServiceContent,
   };
 }
 
@@ -122,7 +122,7 @@ async function selectDomain(state: typeof DomainWorkflowState.State) {
   const selection = parseSelection(agentState.messages);
   return {
     messages: agentState.messages,
-    selectedDomain: selection.domain_to_register,
+    selectedDomain: selection.domainToRegister,
     selectionReason: selection.reason,
   };
 }
@@ -159,8 +159,17 @@ async function ensureWorkflowInitialized(): Promise<DomainWorkflowComponents> {
 
   const tools = await loadDomainTools();
   const components: DomainWorkflowComponents = {
-    suggesterAgent: buildDomainSuggesterAgent(tools),
-    selectorAgent: buildDomainSelectorAgent(),
+    suggesterAgent: createAgent({
+      model: new ChatOpenAI({ model: 'gpt-5-mini' }),
+      tools,
+      systemPrompt:
+        'あなたはドメイン名を提案するアシスタントです。ユーザが説明したWebサービスの内容を踏まえて、findadomain MCP サーバーのツールを使って空き状況を確認し、取得候補を5件提案してください。結果は domainCandidates（文字列の配列）と webServiceContent（要約テキスト）のJSONで出力してください。',
+    }),
+    selectorAgent: createAgent({
+      model: new ChatOpenAI({ model: 'gpt-5' }),
+      systemPrompt:
+        'あなたは取得すべきドメインを選定するアシスタントです。与えられた候補から1つだけ選び、選定理由を日本語で説明してください。回答は domainToRegister と reason を持つJSONで返してください。',
+    }),
     graph: createDomainWorkflowGraph(),
   };
 
@@ -280,13 +289,13 @@ function parseSuggestionFallback(message: AIMessage): DomainSuggestion | null {
     const jsonText = extractJsonPayload(raw) ?? raw;
     const parsed = JSON.parse(jsonText);
     if (
-      Array.isArray(parsed.domain_candidates) &&
-      parsed.domain_candidates.every((item: unknown) => typeof item === 'string') &&
-      typeof parsed.web_service_content === 'string'
+      Array.isArray(parsed.domainCandidates) &&
+      parsed.domainCandidates.every((item: unknown) => typeof item === 'string') &&
+      typeof parsed.webServiceContent === 'string'
     ) {
       return {
-        domain_cnadidates: parsed.domain_candidates as string[],
-        web_service_content: parsed.web_service_content as string,
+        domainCandidates: parsed.domainCandidates as string[],
+        webServiceContent: parsed.webServiceContent as string,
       };
     }
   } catch (error) {
@@ -329,21 +338,4 @@ function extractJsonPayload(raw: string): string | null {
   }
 
   return null;
-}
-
-function buildDomainSuggesterAgent(tools: DynamicStructuredTool[]) {
-  return createAgent({
-    model: new ChatOpenAI({ model: 'gpt-5-mini' }),
-    tools,
-    systemPrompt:
-      'あなたはドメイン名を提案するアシスタントです。ユーザが説明したWebサービスの内容を踏まえて、findadomain MCP サーバーのツールを使って空き状況を確認し、取得候補を5件提案してください。結果は domain_cnadidates（文字列の配列）と web_service_content（要約テキスト）のJSONで出力してください。',
-  });
-}
-
-function buildDomainSelectorAgent() {
-  return createAgent({
-    model: new ChatOpenAI({ model: 'gpt-5' }),
-    systemPrompt:
-      'あなたは取得すべきドメインを選定するアシスタントです。与えられた候補から1つだけ選び、選定理由を日本語で説明してください。回答は domain_to_register と reason を持つJSONで返してください。',
-  });
 }
