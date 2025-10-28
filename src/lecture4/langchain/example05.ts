@@ -1,3 +1,4 @@
+import type { ContentBlock } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -15,27 +16,22 @@ const response = await model.invoke([
   ['user', 'こんばんは'],
 ]);
 
-console.log(contentToString(response.content));
+console.log(standardContentToText(response.content));
 
-function contentToString(content: unknown): string {
+function standardContentToText(content: string | ContentBlock[]): string {
   if (typeof content === 'string') {
     return content;
   }
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === 'string') {
-          return part;
-        }
-        if (part && typeof part === 'object' && 'text' in part) {
-          const text = (part as { text?: unknown }).text;
-          if (typeof text === 'string') {
-            return text;
-          }
-        }
-        return '';
-      })
-      .join('');
-  }
-  return '';
+  return content
+    .map((block) => {
+      switch (block.type) {
+        case 'text':
+          return block.text;
+        case 'reasoning':
+          return block.reasoning;
+        default:
+          return '';
+      }
+    })
+    .join('');
 }

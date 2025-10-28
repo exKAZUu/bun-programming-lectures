@@ -1,4 +1,4 @@
-import type { BaseMessageLike } from '@langchain/core/messages';
+import type { BaseMessageLike, ContentBlock } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -24,7 +24,7 @@ for (let i = 0; i < 3; i++) {
   logs.push({ role: 'user', content: userMessage });
 
   const response = await model.invoke(messages);
-  const outputText = contentToString(response.content);
+  const outputText = standardContentToText(response.content);
 
   messages.push(response);
   logs.push({ role: 'assistant', content: outputText });
@@ -38,25 +38,20 @@ for (let i = 0; i < 3; i++) {
 // その南にある都道府県は？
 // その南東は？
 
-function contentToString(content: unknown): string {
+function standardContentToText(content: string | ContentBlock[]): string {
   if (typeof content === 'string') {
     return content;
   }
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === 'string') {
-          return part;
-        }
-        if (part && typeof part === 'object' && 'text' in part) {
-          const text = (part as { text?: unknown }).text;
-          if (typeof text === 'string') {
-            return text;
-          }
-        }
-        return '';
-      })
-      .join('');
-  }
-  return '';
+  return content
+    .map((block) => {
+      switch (block.type) {
+        case 'text':
+          return block.text;
+        case 'reasoning':
+          return block.reasoning;
+        default:
+          return '';
+      }
+    })
+    .join('');
 }
