@@ -3,11 +3,6 @@ import { ChatOpenAI } from '@langchain/openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
-type MessageLog = {
-  role: string;
-  content: string;
-};
-
 const model = new ChatOpenAI({
   model: 'gpt-5-nano',
 });
@@ -16,22 +11,19 @@ const systemInstruction =
   'あなたは高性能な日英翻訳エンジンです。ユーザの入力を英訳して返してください。英訳結果以外を出力しないでください。';
 
 const messages: BaseMessageLike[] = [new SystemMessage({ content: systemInstruction })];
-const logs: MessageLog[] = [{ role: 'system', content: systemInstruction }];
 
 for (let i = 0; i < 3; i++) {
   const userMessage = prompt('日英翻訳:');
   if (!userMessage) continue;
 
   messages.push(new HumanMessage({ content: userMessage }));
-  logs.push({ role: 'user', content: userMessage });
 
   const response = await model.invoke(messages);
   const outputText = contentToText(response.content);
 
   messages.push(response);
-  logs.push({ role: 'assistant', content: outputText });
 
-  console.log('Messages:', logs);
+  console.log('Messages:', messages);
   console.log('Output:', outputText, '\n');
 }
 
