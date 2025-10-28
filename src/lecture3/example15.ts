@@ -1,3 +1,7 @@
+/**
+ * FindADomain MCP Server (https://findadomain.dev/mcp) を使ったエージェントの例。
+ */
+
 import { Agent, MCPServerStreamableHttp, run } from '@openai/agents';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

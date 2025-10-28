@@ -1,3 +1,8 @@
+/**
+ * 四則演算ツールとTavilyツールを使って情報検索の結果に基づいて計算するエージェントの例。
+ * src/lecture2/example15.ts のAgents SDK版。
+ */
+
 import { Agent, run, tool } from '@openai/agents';
 import { tavily } from '@tavily/core';
 import { z } from 'zod';

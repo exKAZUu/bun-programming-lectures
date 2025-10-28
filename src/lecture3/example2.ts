@@ -1,5 +1,5 @@
 /**
- * メモリ上のみ会話履歴を管理するエージェントの例 (自由入力)
+ * メモリ上で会話履歴を管理するエージェントの例 (自由入力)
  */
 
 import type { AgentInputItem } from '@openai/agents';

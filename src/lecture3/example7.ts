@@ -1,3 +1,8 @@
+/**
+ * 四則演算ツールを使って数式を計算するエージェントの例。
+ * src/lecture2/example12.ts のAgents SDK版。
+ */
+
 import { Agent, run, tool } from '@openai/agents';
 import { z } from 'zod';
 

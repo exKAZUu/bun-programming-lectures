@@ -1,3 +1,7 @@
+/**
+ * Excel MCP Server (https://github.com/negokaz/excel-mcp-server) を使ったエージェントの例。
+ */
+
 import { Agent, codeInterpreterTool, MCPServerStdio, run } from '@openai/agents';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

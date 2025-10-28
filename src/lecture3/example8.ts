@@ -1,3 +1,8 @@
+/**
+ * Tavilyツールを使って情報を検索するエージェントの例。
+ * src/lecture2/example14.ts のAgents SDK版。
+ */
+
 import { Agent, run, tool } from '@openai/agents';
 import { tavily } from '@tavily/core';
 import { z } from 'zod';

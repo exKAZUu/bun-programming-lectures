@@ -1,3 +1,7 @@
+/**
+ * OpenAIが提供するWeb検索とプログラム実行のツールを使って情報検索の結果に基づいて計算するエージェントの例。
+ */
+
 import { Agent, codeInterpreterTool, run, webSearchTool } from '@openai/agents';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
