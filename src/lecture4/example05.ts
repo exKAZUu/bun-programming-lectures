@@ -4,15 +4,14 @@ import { ChatOpenAI } from '@langchain/openai';
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 
 const model = new ChatOpenAI({
-  model: 'gpt-4.1',
-  temperature: 0,
+  model: 'gpt-5-mini',
 });
 
 const response = await model.invoke([
   ['user', 'おはよう'],
-  ['assistant', 'Good morning'],
+  ['ai', 'Good morning'],
   ['user', 'こんにちは'],
-  ['assistant', 'Hello'],
+  ['ai', 'Hello'],
   ['user', 'こんばんは'],
 ]);
 

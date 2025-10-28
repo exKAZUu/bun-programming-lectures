@@ -1,4 +1,4 @@
-import { type AIMessage, type BaseMessage, HumanMessage, isAIMessage, isHumanMessage } from '@langchain/core/messages';
+import { AIMessage, type BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { Annotation, END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { ChatOpenAI } from '@langchain/openai';
@@ -130,7 +130,7 @@ function formatSelectionPrompt(state: typeof DomainWorkflowState.State): string 
 }
 
 function findFirstUserMessage(messages: BaseMessage[]): string | null {
-  const message = messages.find((item) => isHumanMessage(item));
+  const message = messages.find((item) => HumanMessage.isInstance(item));
   if (message == null) {
     return null;
   }
@@ -241,7 +241,7 @@ function parseSelection(messages: BaseMessage[]): DomainSelection {
 function findLastAIMessage(messages: BaseMessage[]): AIMessage {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
-    if (message != null && isAIMessage(message)) {
+    if (message != null && AIMessage.isInstance(message)) {
       return message;
     }
   }
@@ -303,7 +303,7 @@ function messageContentToString(message: AIMessage): string {
 
 function extractJsonPayload(raw: string): string | null {
   const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (codeBlockMatch) {
+  if (codeBlockMatch && codeBlockMatch[1]) {
     return codeBlockMatch[1].trim();
   }
 
