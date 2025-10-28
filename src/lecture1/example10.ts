@@ -1,3 +1,7 @@
+/**
+ * GPT-4.1を用いて翻訳用Developer指示付きの対話を繰り返し、履歴を追跡する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

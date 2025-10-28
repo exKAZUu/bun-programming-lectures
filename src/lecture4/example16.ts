@@ -1,3 +1,7 @@
+/**
+ * LangGraphとMCPツールを組み合わせてドメイン候補の提案と選定を自動化するワークフローの例。
+ */
+
 import { AIMessage, type BaseMessage, HumanMessage } from '@langchain/core/messages';
 import type { DynamicStructuredTool } from '@langchain/core/tools';
 import { Annotation, END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';

@@ -1,3 +1,7 @@
+/**
+ * 過去のユーザ入力とAI応答を配列に蓄積しながら最大3ターンの対話を行うLangChainの例。
+ */
+
 import { type BaseMessageLike, type ContentBlock, HumanMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 

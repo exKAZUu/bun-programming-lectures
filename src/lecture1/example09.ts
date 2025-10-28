@@ -1,3 +1,7 @@
+/**
+ * Developerロールの指示を維持しながらユーザ入力を3回まで逐次英訳するインタラクティブな例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

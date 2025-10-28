@@ -1,3 +1,7 @@
+/**
+ * System/Humanメッセージを使った英訳エージェントを3ターン分繰り返すLangChainの例。
+ */
+
 import { type BaseMessageLike, type ContentBlock, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 

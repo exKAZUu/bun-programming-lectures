@@ -1,3 +1,7 @@
+/**
+ * Developerロールのガイダンスを通じて足し算だけを外部で計算しながら式を段階的に評価する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

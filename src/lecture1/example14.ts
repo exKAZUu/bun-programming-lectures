@@ -1,3 +1,7 @@
+/**
+ * ReasoningモデルGPT-5 Nanoに翻訳タスクを繰り返し投げ、履歴を保持する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

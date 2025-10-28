@@ -1,3 +1,7 @@
+/**
+ * Responses APIのストリーミング出力を逐次的に処理してコンソールに書き出す例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

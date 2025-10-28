@@ -1,3 +1,7 @@
+/**
+ * Responses APIのfunction callでTavily検索と四則演算ツールを同時に扱い、検索結果に基づく計算を行う総合例。
+ */
+
 import { tavily } from '@tavily/core';
 import OpenAI from 'openai';
 import type { ResponseFunctionToolCall } from 'openai/resources/responses/responses';

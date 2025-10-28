@@ -1,3 +1,7 @@
+/**
+ * LangChainのChatOpenAIを使って単発プロンプトから物語を生成する最小限の例。
+ */
+
 import type { ContentBlock } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 

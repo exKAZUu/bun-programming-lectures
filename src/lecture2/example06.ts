@@ -1,3 +1,7 @@
+/**
+ * example05をGPT-4.1に置き換え、同じJSONベースの足し算計算を別モデルで評価する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

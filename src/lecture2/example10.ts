@@ -1,3 +1,7 @@
+/**
+ * example09の関数呼び出し形式をGPT-5 Miniに適用し、同じ制御フローを別モデルで確認する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

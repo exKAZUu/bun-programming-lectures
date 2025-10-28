@@ -1,3 +1,7 @@
+/**
+ * OpenAI Agents SDKでFindA Domainのホスト型MCPツールを呼び出し、ドメイン取得状況を調べるワークフローの例。
+ */
+
 import { Agent, type AgentInputItem, hostedMcpTool, Runner, withTrace } from '@openai/agents';
 
 // Tool definitions

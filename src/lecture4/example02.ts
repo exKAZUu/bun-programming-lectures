@@ -1,3 +1,7 @@
+/**
+ * 複数のエージェントを組み合わせてドメイン候補の提案と選定を行うAgents SDKワークフローの例。
+ */
+
 import { Agent, type AgentInputItem, hostedMcpTool, Runner, withTrace } from '@openai/agents';
 import { z } from 'zod';
 

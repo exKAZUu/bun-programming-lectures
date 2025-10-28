@@ -1,3 +1,7 @@
+/**
+ * LangChainのメッセージクラスを使って手動で会話履歴を構築し、フォローアップ質問への応答を取得する例。
+ */
+
 import { AIMessage, type ContentBlock, HumanMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 

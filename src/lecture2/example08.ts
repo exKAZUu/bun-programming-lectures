@@ -1,3 +1,7 @@
+/**
+ * example07と同じJSONベースの協調計算をGPT-5 Miniで再現し、モデル差分を検証する例。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

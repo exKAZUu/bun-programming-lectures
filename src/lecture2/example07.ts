@@ -1,3 +1,7 @@
+/**
+ * 四則演算の式分解をJSONで受け渡ししながらホストが逐次計算する協調ワークフロー (GPT-4.1版)。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';

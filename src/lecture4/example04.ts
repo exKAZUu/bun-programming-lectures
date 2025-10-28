@@ -1,3 +1,7 @@
+/**
+ * ChatOpenAIのストリーミングAPIを用いて生成テキストを逐次コンソールに出力する例。
+ */
+
 import type { ContentBlock } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 

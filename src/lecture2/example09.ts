@@ -1,3 +1,7 @@
+/**
+ * 関数名と引数をJSONで出力させ、ホスト側の四則演算ディスパッチャーに委譲する例 (GPT-4.1版)。
+ */
+
 import OpenAI from 'openai';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
