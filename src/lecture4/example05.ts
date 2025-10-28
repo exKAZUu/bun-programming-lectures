@@ -16,29 +16,26 @@ const response = await model.invoke([
   ['user', 'こんばんは'],
 ]);
 
-console.log(standardContentToText(response.content));
+console.log(contentToText(response.content));
 
-function standardContentToText(content: string | ContentBlock[]): string {
+function contentToText(content: string | ContentBlock[]): string {
   if (typeof content === 'string') {
     return content;
   }
   return content
-    .map((block): string => {
+    .map((block) => {
       switch (block.type) {
         case 'text': {
-          const { text } = block as { text?: unknown };
-          return typeof text === 'string' ? text : '';
+          const { text } = block as ContentBlock.Text;
+          return text;
         }
         case 'reasoning': {
-          const { reasoning } = block as { reasoning?: unknown };
-          return typeof reasoning === 'string'
-            ? `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`
-            : '';
+          const { reasoning } = block as ContentBlock.Reasoning;
+          return `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`;
         }
-        default:
-          return '';
       }
+      return '';
     })
-    .filter((part): part is string => part.length > 0)
+    .filter(Boolean)
     .join('');
 }

@@ -33,32 +33,29 @@ for (let i = 0; i < 3; i++) {
   console.log('Output:', outputText, '\n');
 }
 
-// 入力例:
-// 日本の地理的な中心に位置する都道府県を一つ挙げてください。
-// その南にある都道府県は？
-// その南東は？
-
-function standardContentToText(content: string | ContentBlock[]): string {
+function contentToText(content: string | ContentBlock[]): string {
   if (typeof content === 'string') {
     return content;
   }
   return content
-    .map((block): string => {
+    .map((block) => {
       switch (block.type) {
         case 'text': {
-          const { text } = block as { text?: unknown };
-          return typeof text === 'string' ? text : '';
+          const { text } = block as ContentBlock.Text;
+          return text;
         }
         case 'reasoning': {
-          const { reasoning } = block as { reasoning?: unknown };
-          return typeof reasoning === 'string'
-            ? `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`
-            : '';
+          const { reasoning } = block as ContentBlock.Reasoning;
+          return `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`;
         }
-        default:
-          return '';
       }
+      return '';
     })
-    .filter((part): part is string => part.length > 0)
+    .filter(Boolean)
     .join('');
 }
+
+// 入力例:
+// 日本の地理的な中心に位置する都道府県を一つ挙げてください。
+// その南にある都道府県は？
+// その南東は？
