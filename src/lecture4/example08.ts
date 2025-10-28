@@ -3,7 +3,14 @@
  * src/lecture2/example12.ts のAgents SDK版をLangChain相当の構成に書き換えたもの。
  */
 
-import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
+import {
+  AIMessage,
+  type BaseMessageLike,
+  type ContentBlock,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+} from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
@@ -44,8 +51,8 @@ const instruction = `
 `.trim();
 
 const messages: BaseMessageLike[] = [
-  ['system', instruction],
-  ['human', userMessage],
+  new SystemMessage({ content: instruction }),
+  new HumanMessage({ content: userMessage }),
 ];
 
 const steps: ToolCallLog[] = [];
