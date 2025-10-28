@@ -1,4 +1,5 @@
 import { AIMessage, type BaseMessage, HumanMessage } from '@langchain/core/messages';
+import type { DynamicStructuredTool } from '@langchain/core/tools';
 import { Annotation, END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { ChatOpenAI } from '@langchain/openai';
@@ -48,6 +49,8 @@ const DomainWorkflowState = Annotation.Root({
 let domainSuggesterAgent: ReactAgent<ResponseFormatUndefined> | undefined;
 let domainSelectorAgent: ReactAgent<ResponseFormatUndefined> | undefined;
 let domainWorkflowGraph: ReturnType<typeof createDomainWorkflowGraph> | undefined;
+let domainToolsClient: MultiServerMCPClient | undefined;
+let cachedDomainTools: DynamicStructuredTool[] | null = null;
 
 type WorkflowInput = { input_as_text: string };
 
@@ -172,17 +175,26 @@ async function ensureWorkflowInitialized() {
 }
 
 async function loadDomainTools() {
-  const client = new MultiServerMCPClient({
-    find_a_domain: {
-      transport: 'sse',
-      url: 'https://api.findadomain.dev/mcp',
-      automaticSSEFallback: true,
-    },
-  });
+  if (cachedDomainTools != null) {
+    return cachedDomainTools;
+  }
+
+  if (domainToolsClient == null) {
+    domainToolsClient = new MultiServerMCPClient({
+      useStandardContentBlocks: true,
+      mcpServers: {
+        find_a_domain: {
+          transport: 'sse',
+          url: 'https://api.findadomain.dev/mcp',
+          automaticSSEFallback: true,
+        },
+      },
+    });
+  }
 
   try {
     const tools = await promiseWithTimeout(
-      client
+      domainToolsClient
         .getTools(['find_a_domain'])
         .then((loadedTools) => loadedTools.filter((tool) => tool.name === 'check_domain' || tool.name === 'list_tlds')),
       15000,
@@ -192,14 +204,16 @@ async function loadDomainTools() {
     if (tools.length === 0) {
       console.warn('find_a_domain MCPのツールが取得できなかったため、LLMのみで候補を生成します。');
     }
+    cachedDomainTools = tools;
     return tools;
   } catch (error) {
     console.warn('find_a_domain MCP サーバーに接続できなかったため、LLMのみで候補を生成します。', error);
-    return [];
-  } finally {
-    await client.close().catch(() => {
+    await domainToolsClient?.close().catch(() => {
       // ignore close errors
     });
+    domainToolsClient = undefined;
+    cachedDomainTools = null;
+    return [];
   }
 }
 
