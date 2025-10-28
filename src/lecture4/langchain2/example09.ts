@@ -1,15 +1,9 @@
 /**
- * 四則演算ツールとTavilyツールを組み合わせて情報検索の結果に基づいて計算するLangChainエージェントの例。
- * src/lecture2/example15.ts のAgents SDK版をLangChain構成に置き換えたもの。
+ * Tavilyツールを使って情報を検索するLangChainエージェントの例。
+ * src/lecture2/example14.ts のAgents SDK版をLangChain構成に置き換えたもの。
  */
 
-import {
-  AIMessage,
-  ToolMessage,
-  isAIMessage,
-  type BaseMessageLike,
-  type ContentBlock,
-} from '@langchain/core/messages';
+import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
 import { tavily } from '@tavily/core';
@@ -26,12 +20,7 @@ type ToolCallLog = {
 
 const tvly = tavily();
 const tavilySearch = createTavilySearchTool();
-const add = createBinaryOperationTool('add', '2つの数値を加算します', (term1, term2) => term1 + term2);
-const sub = createBinaryOperationTool('sub', '2つの数値を減算します', (term1, term2) => term1 - term2);
-const mul = createBinaryOperationTool('mul', '2つの数値を乗算します', (term1, term2) => term1 * term2);
-const div = createBinaryOperationTool('div', '2つの数値を除算します', (term1, term2) => term1 / term2);
-
-const tools = [tavilySearch, add, sub, mul, div];
+const tools = [tavilySearch];
 const toolMap = new Map(tools.map((tool) => [tool.name, tool] as const));
 
 const llm = new ChatOpenAI({
@@ -44,14 +33,13 @@ const modelWithTools = llm.bindTools(tools, {
   strict: true,
 });
 
-const question =
-  prompt('調べたい質問を入力してください（例: 日本で2番目に高い山と3番目に高い山の標高の合計値は？）:')?.trim() ?? '';
+const question = prompt('調べたい質問を入力してください:')?.trim() ?? '';
 if (!question) throw new Error('質問が入力されませんでした。');
 
 const instruction = `
-あなたはウェブ検索と計算用のツールを使い分けて数値的な問いに答える日本語のリサーチアシスタントです。
-検索が必要な場合は必ず tavily_search を使用し、必要な合計や差分などの計算は提供された算術ツールで実行してください。
-最終回答では根拠URLと計算内容を日本語で端的に示してください。
+あなたはウェブ検索結果と大規模言語モデルを組み合わせて最新情報を回答する日本語のリサーチアシスタントです。
+検索が必要な場合は必ず tavily_search ツールを呼び出し、得られた根拠URLを最終回答に記載してください。
+最終回答では見出しや箇条書きなどを活用し、最後に参考URLを列挙してください。
 `.trim();
 
 const messages: BaseMessageLike[] = [
@@ -62,9 +50,9 @@ const messages: BaseMessageLike[] = [
 const steps: ToolCallLog[] = [];
 let finalResponse: AIMessage | null = null;
 
-for (let turn = 0; turn < 10; turn++) {
+for (let turn = 0; turn < 8; turn++) {
   const aiResponse = await modelWithTools.invoke(messages);
-  if (!isAIMessage(aiResponse)) {
+  if (!AIMessage.isInstance(aiResponse)) {
     throw new Error('LLMからAIメッセージ以外の応答が返ってきました。');
   }
 
@@ -90,12 +78,10 @@ for (let turn = 0; turn < 10; turn++) {
       continue;
     }
 
-    const toolInvoker = tool as { invoke: (input: unknown) => Promise<unknown> };
-    const toolOutput = await toolInvoker.invoke(toolCall);
+    const toolOutput = await tool.invoke(toolCall);
     steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
 
-    const serializedOutput =
-      typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+    const serializedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
     messages.push(
       new ToolMessage({
         content: serializedOutput ?? '',
@@ -108,7 +94,7 @@ for (let turn = 0; turn < 10; turn++) {
 
 printIntermediateSteps(steps);
 
-console.log('\n=== 計算結果 ===\n');
+console.log('\n=== 回答 ===\n');
 if (finalResponse) {
   console.log(contentToText(finalResponse.content));
 } else {
@@ -118,51 +104,13 @@ if (finalResponse) {
 function createTavilySearchTool() {
   return new DynamicStructuredTool({
     name: 'tavily_search',
-    description: '最新のウェブ検索結果から山の標高などの事実を調べます。',
+    description: '最新のウェブ検索結果を取得して、ユーザの質問に答えるための情報を探します。',
     schema: z
       .object({
-        query: z.string().min(1).describe('検索する日本語もしくは英語のクエリ'),
+        query: z.string().min(1).describe('検索エンジンに投げる日本語または英語のクエリ'),
       })
       .strict(),
-    func: async ({ query }) => {
-      console.log('\n[tool] tavily_search');
-      console.log(`[tool] input: ${JSON.stringify({ query })}`);
-
-      const result = await executeTavilySearch(query);
-      console.log('[tool] output:', JSON.stringify(result, null, 2));
-      return result;
-    },
-  });
-}
-
-function createBinaryOperationTool(
-  name: string,
-  description: string,
-  operation: (term1: number, term2: number) => number
-) {
-  return new DynamicStructuredTool({
-    name,
-    description,
-    schema: z
-      .object({
-        term1: z.number().describe('演算で扱う1つ目の数値'),
-        term2: z.number().describe('演算で扱う2つ目の数値'),
-      })
-      .strict(),
-    func: async ({ term1, term2 }) => {
-      console.log(`\n[tool] ${name}`);
-      console.log(`[tool] input: ${JSON.stringify({ term1, term2 })}`);
-
-      const result = operation(term1, term2);
-      // 非有限の値が返るとモデルが誤った説明を生成しやすいため拒否する。
-      if (!Number.isFinite(result)) {
-        throw new Error('計算結果が有限の数値ではありません。');
-      }
-
-      const serialized = { result };
-      console.log('[tool] output:', JSON.stringify(serialized, null, 2));
-      return serialized;
-    },
+    func: async ({ query }) => executeTavilySearch(query),
   });
 }
 
@@ -174,7 +122,7 @@ async function executeTavilySearch(query: string) {
       maxResults: 5,
     });
 
-    // 出典URLと要約だけに絞ることで最終回答が裏付けを示しやすくなる。
+    // LLMに渡す情報量を絞ることで推論コストと誤情報の混入リスクを抑える。
     return {
       results: results.map((item) => ({
         title: item.title,
@@ -192,13 +140,9 @@ function printIntermediateSteps(steps: ToolCallLog[]) {
 
   console.log('\n=== 生成されたステップ ===\n');
   steps.forEach((step, index) => {
-    const serializedInput =
-      typeof step.input === 'string' ? step.input : JSON.stringify(step.input);
-    const serializedOutput =
-      typeof step.output === 'string' ? step.output : JSON.stringify(step.output);
-    console.log(
-      `[${index + 1}] tool=${step.tool}\n    input=${serializedInput}\n    output=${serializedOutput}\n`
-    );
+    const serializedInput = typeof step.input === 'string' ? step.input : JSON.stringify(step.input);
+    const serializedOutput = typeof step.output === 'string' ? step.output : JSON.stringify(step.output);
+    console.log(`[${index + 1}] tool=${step.tool}\n    input=${serializedInput}\n    output=${serializedOutput}\n`);
   });
 }
 
@@ -224,5 +168,5 @@ function contentToText(content: string | ContentBlock[]): string {
     .join('');
 }
 
-// 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ -> 3,180 × 8,463 = 26,912,340m or 3,180 × 8,465 = 26,982,300m
-// 例2: 日本で6番目に高い山の標高から2025年の自民党の総裁選挙の決選投票における高市早苗氏の得票数を引いた結果は？ -> 3141－185＝2956
+// 例1: 2025年のノーベル平和賞は誰が受賞した？
+// 例2: 2025年の自民党の総裁選挙の結果は？

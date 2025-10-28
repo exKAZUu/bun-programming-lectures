@@ -1,22 +1,14 @@
 /**
- * Tavilyツールを使って情報を検索するLangChainエージェントの例。
- * src/lecture2/example14.ts のAgents SDK版をLangChain構成に置き換えたもの。
+ * 四則演算ツールを使って数式を計算するLangChainエージェントの例。
+ * src/lecture2/example12.ts のAgents SDK版をLangChain相当の構成に書き換えたもの。
  */
 
-import {
-  AIMessage,
-  ToolMessage,
-  isAIMessage,
-  type BaseMessageLike,
-  type ContentBlock,
-} from '@langchain/core/messages';
+import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
-import { tavily } from '@tavily/core';
 import { z } from 'zod';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
-process.env.TAVILY_API_KEY ||= 'tvly-<ここにTavilyのAPIキーを貼り付けてください>';
 
 type ToolCallLog = {
   tool: string;
@@ -24,14 +16,16 @@ type ToolCallLog = {
   output: unknown;
 };
 
-const tvly = tavily();
-const tavilySearch = createTavilySearchTool();
-const tools = [tavilySearch];
+const add = createBinaryOperationTool('add', '2つの数値を加算します', (term1, term2) => term1 + term2);
+const sub = createBinaryOperationTool('sub', '2つの数値を減算します', (term1, term2) => term1 - term2);
+const mul = createBinaryOperationTool('mul', '2つの数値を乗算します', (term1, term2) => term1 * term2);
+const div = createBinaryOperationTool('div', '2つの数値を除算します', (term1, term2) => term1 / term2);
+
+const tools = [add, sub, mul, div];
 const toolMap = new Map(tools.map((tool) => [tool.name, tool] as const));
 
 const llm = new ChatOpenAI({
-  model: 'gpt-4.1',
-  temperature: 0,
+  model: 'gpt-5-mini',
 });
 
 const modelWithTools = llm.bindTools(tools, {
@@ -39,26 +33,27 @@ const modelWithTools = llm.bindTools(tools, {
   strict: true,
 });
 
-const question = prompt('調べたい質問を入力してください:')?.trim() ?? '';
-if (!question) throw new Error('質問が入力されませんでした。');
+const userMessage = prompt('数式を入力してください:')?.trim() ?? '';
+if (!userMessage) throw new Error('数式が入力されませんでした。');
 
 const instruction = `
-あなたはウェブ検索結果と大規模言語モデルを組み合わせて最新情報を回答する日本語のリサーチアシスタントです。
-検索が必要な場合は必ず tavily_search ツールを呼び出し、得られた根拠URLを最終回答に記載してください。
-最終回答では見出しや箇条書きなどを活用し、最後に参考URLを列挙してください。
+あなたはユーザが入力した数式の計算結果を出力するAIです。
+演算子の優先順位を考慮しつつ、提供されている算術ツールを段階的に呼び出してください。
+最終的な回答では計算結果のみを数値で出力してください。
+各ツールは result フィールドに計算結果を返します。
 `.trim();
 
 const messages: BaseMessageLike[] = [
   ['system', instruction],
-  ['human', question],
+  ['human', userMessage],
 ];
 
 const steps: ToolCallLog[] = [];
 let finalResponse: AIMessage | null = null;
 
-for (let turn = 0; turn < 8; turn++) {
+for (let turn = 0; turn < 10; turn++) {
   const aiResponse = await modelWithTools.invoke(messages);
-  if (!isAIMessage(aiResponse)) {
+  if (!AIMessage.isInstance(aiResponse)) {
     throw new Error('LLMからAIメッセージ以外の応答が返ってきました。');
   }
 
@@ -87,8 +82,7 @@ for (let turn = 0; turn < 8; turn++) {
     const toolOutput = await tool.invoke(toolCall);
     steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
 
-    const serializedOutput =
-      typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+    const serializedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
     messages.push(
       new ToolMessage({
         content: serializedOutput ?? '',
@@ -101,45 +95,36 @@ for (let turn = 0; turn < 8; turn++) {
 
 printIntermediateSteps(steps);
 
-console.log('\n=== 回答 ===\n');
+console.log('\n=== 最終結果 ===\n');
 if (finalResponse) {
   console.log(contentToText(finalResponse.content));
 } else {
-  console.log('回答を生成できませんでした。');
+  console.log('結果を生成できませんでした。');
 }
 
-function createTavilySearchTool() {
+function createBinaryOperationTool(
+  name: string,
+  description: string,
+  operation: (term1: number, term2: number) => number
+) {
   return new DynamicStructuredTool({
-    name: 'tavily_search',
-    description: '最新のウェブ検索結果を取得して、ユーザの質問に答えるための情報を探します。',
+    name,
+    description,
     schema: z
       .object({
-        query: z.string().min(1).describe('検索エンジンに投げる日本語または英語のクエリ'),
+        term1: z.number().describe('演算で扱う1つ目の数値'),
+        term2: z.number().describe('演算で扱う2つ目の数値'),
       })
       .strict(),
-    func: async ({ query }) => executeTavilySearch(query),
+    func: async ({ term1, term2 }) => {
+      const result = operation(term1, term2);
+      // LLMが不正な値を取り扱うと推論が破綻するため、有限値のみを返す。
+      if (!Number.isFinite(result)) {
+        throw new Error('計算結果が有限の数値ではありません。');
+      }
+      return { result };
+    },
   });
-}
-
-async function executeTavilySearch(query: string) {
-  try {
-    const { results } = await tvly.search(query, {
-      includeAnswer: false,
-      includeImages: false,
-      maxResults: 5,
-    });
-
-    // LLMに渡す情報量を絞ることで推論コストと誤情報の混入リスクを抑える。
-    return {
-      results: results.map((item) => ({
-        title: item.title,
-        url: item.url,
-        content: item.content,
-      })),
-    };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
-  }
 }
 
 function printIntermediateSteps(steps: ToolCallLog[]) {
@@ -147,13 +132,9 @@ function printIntermediateSteps(steps: ToolCallLog[]) {
 
   console.log('\n=== 生成されたステップ ===\n');
   steps.forEach((step, index) => {
-    const serializedInput =
-      typeof step.input === 'string' ? step.input : JSON.stringify(step.input);
-    const serializedOutput =
-      typeof step.output === 'string' ? step.output : JSON.stringify(step.output);
-    console.log(
-      `[${index + 1}] tool=${step.tool}\n    input=${serializedInput}\n    output=${serializedOutput}\n`
-    );
+    const serializedInput = typeof step.input === 'string' ? step.input : JSON.stringify(step.input);
+    const serializedOutput = typeof step.output === 'string' ? step.output : JSON.stringify(step.output);
+    console.log(`[${index + 1}] tool=${step.tool}\n    input=${serializedInput}\n    output=${serializedOutput}\n`);
   });
 }
 
@@ -179,5 +160,6 @@ function contentToText(content: string | ContentBlock[]): string {
     .join('');
 }
 
-// 例1: 2025年のノーベル平和賞は誰が受賞した？
-// 例2: 2025年の自民党の総裁選挙の結果は？
+// 例1: 5178952 + 25198791 -> 30377743
+// 例2: 3 + 5 * 2 - 4 -> 9
+// 例3: (10 - 2) * (3 + 4) / 2 -> 28

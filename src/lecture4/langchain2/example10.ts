@@ -1,50 +1,195 @@
 /**
- * OpenAIが提供するホスト型ツール（Web検索・コード実行）をLangChain経由で利用する例。
+ * 四則演算ツールとTavilyツールを組み合わせて情報検索の結果に基づいて計算するLangChainエージェントの例。
+ * src/lecture2/example15.ts のAgents SDK版をLangChain構成に置き換えたもの。
  */
 
-import { type ContentBlock, isAIMessage } from '@langchain/core/messages';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
+import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
+import { tavily } from '@tavily/core';
+import { z } from 'zod';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
+process.env.TAVILY_API_KEY ||= 'tvly-<ここにTavilyのAPIキーを貼り付けてください>';
+
+type ToolCallLog = {
+  tool: string;
+  input: unknown;
+  output: unknown;
+};
+
+const tvly = tavily();
+const tavilySearch = createTavilySearchTool();
+const add = createBinaryOperationTool('add', '2つの数値を加算します', (term1, term2) => term1 + term2);
+const sub = createBinaryOperationTool('sub', '2つの数値を減算します', (term1, term2) => term1 - term2);
+const mul = createBinaryOperationTool('mul', '2つの数値を乗算します', (term1, term2) => term1 * term2);
+const div = createBinaryOperationTool('div', '2つの数値を除算します', (term1, term2) => term1 / term2);
+
+const tools = [tavilySearch, add, sub, mul, div];
+const toolMap = new Map(tools.map((tool) => [tool.name, tool] as const));
 
 const llm = new ChatOpenAI({
-  model: 'gpt-5-mini',
+  model: 'gpt-4.1',
   temperature: 0,
 });
 
-const hostedToolModel = llm.bindTools([{ type: 'web_search' }, { type: 'code_interpreter' }], {
-  parallel_tool_calls: true,
+const modelWithTools = llm.bindTools(tools, {
+  parallel_tool_calls: false,
+  strict: true,
 });
 
-const promptTemplate = ChatPromptTemplate.fromMessages([
-  [
-    'system',
-    `
-あなたは与えられたホスト型ツールを使って、最新の情報収集とコード実行を行う日本語アシスタントです。
-ユーザの依頼に応じて以下の方針を守ってください:
-- 最新情報が必要な場合は web_search を用いて信頼できる根拠を集める。
-- 数値計算やデータ整形が必要な場合は code_interpreter を使ってコードを実行し、実行内容と結果を要約する。
-最終回答では検索の根拠URLと実行した計算の概要を簡潔にまとめてください。
-`.trim(),
-  ],
-  ['human', '{input}'],
-]);
+const question =
+  prompt('調べたい質問を入力してください（例: 日本で2番目に高い山と3番目に高い山の標高の合計値は？）:')?.trim() ?? '';
+if (!question) throw new Error('質問が入力されませんでした。');
 
-const chain = promptTemplate.pipe(hostedToolModel);
+const instruction = `
+あなたはウェブ検索と計算用のツールを使い分けて数値的な問いに答える日本語のリサーチアシスタントです。
+検索が必要な場合は必ず tavily_search を使用し、必要な合計や差分などの計算は提供された算術ツールで実行してください。
+最終回答では根拠URLと計算内容を日本語で端的に示してください。
+`.trim();
 
-const request = prompt('調査してほしいテーマやタスクを入力してください:')?.trim() ?? '';
-if (!request) throw new Error('テーマが入力されませんでした。');
+const messages: BaseMessageLike[] = [
+  ['system', instruction],
+  ['human', question],
+];
 
-const response = await chain.invoke({ input: request });
-if (!isAIMessage(response)) {
-  throw new Error('LLMからの応答を解釈できませんでした。');
+const steps: ToolCallLog[] = [];
+let finalResponse: AIMessage | null = null;
+
+for (let turn = 0; turn < 10; turn++) {
+  const aiResponse = await modelWithTools.invoke(messages);
+  if (!AIMessage.isInstance(aiResponse)) {
+    throw new Error('LLMからAIメッセージ以外の応答が返ってきました。');
+  }
+
+  if (!aiResponse.tool_calls?.length) {
+    finalResponse = aiResponse;
+    break;
+  }
+
+  messages.push(aiResponse);
+
+  for (const toolCall of aiResponse.tool_calls) {
+    const tool = toolMap.get(toolCall.name);
+    if (!tool) {
+      const errorMessage = `ツール${toolCall.name}は登録されていません。`;
+      steps.push({ tool: toolCall.name, input: toolCall.args, output: errorMessage });
+      messages.push(
+        new ToolMessage({
+          content: errorMessage,
+          tool_call_id: toolCall.id ?? `${turn}-${toolCall.name}`,
+          status: 'error',
+        })
+      );
+      continue;
+    }
+
+    const toolInvoker = tool as { invoke: (input: unknown) => Promise<unknown> };
+    const toolOutput = await toolInvoker.invoke(toolCall);
+    steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
+
+    const serializedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+    messages.push(
+      new ToolMessage({
+        content: serializedOutput ?? '',
+        tool_call_id: toolCall.id ?? `${turn}-${toolCall.name}`,
+        status: 'success',
+      })
+    );
+  }
 }
 
-printToolCalls(response.additional_kwargs?.tool_calls);
+printIntermediateSteps(steps);
 
-console.log('\n=== 最終結果 ===\n');
-console.log(contentToText(response.content));
+console.log('\n=== 計算結果 ===\n');
+if (finalResponse) {
+  console.log(contentToText(finalResponse.content));
+} else {
+  console.log('回答を生成できませんでした。');
+}
+
+function createTavilySearchTool() {
+  return new DynamicStructuredTool({
+    name: 'tavily_search',
+    description: '最新のウェブ検索結果から山の標高などの事実を調べます。',
+    schema: z
+      .object({
+        query: z.string().min(1).describe('検索する日本語もしくは英語のクエリ'),
+      })
+      .strict(),
+    func: async ({ query }) => {
+      console.log('\n[tool] tavily_search');
+      console.log(`[tool] input: ${JSON.stringify({ query })}`);
+
+      const result = await executeTavilySearch(query);
+      console.log('[tool] output:', JSON.stringify(result, null, 2));
+      return result;
+    },
+  });
+}
+
+function createBinaryOperationTool(
+  name: string,
+  description: string,
+  operation: (term1: number, term2: number) => number
+) {
+  return new DynamicStructuredTool({
+    name,
+    description,
+    schema: z
+      .object({
+        term1: z.number().describe('演算で扱う1つ目の数値'),
+        term2: z.number().describe('演算で扱う2つ目の数値'),
+      })
+      .strict(),
+    func: async ({ term1, term2 }) => {
+      console.log(`\n[tool] ${name}`);
+      console.log(`[tool] input: ${JSON.stringify({ term1, term2 })}`);
+
+      const result = operation(term1, term2);
+      // 非有限の値が返るとモデルが誤った説明を生成しやすいため拒否する。
+      if (!Number.isFinite(result)) {
+        throw new Error('計算結果が有限の数値ではありません。');
+      }
+
+      const serialized = { result };
+      console.log('[tool] output:', JSON.stringify(serialized, null, 2));
+      return serialized;
+    },
+  });
+}
+
+async function executeTavilySearch(query: string) {
+  try {
+    const { results } = await tvly.search(query, {
+      includeAnswer: false,
+      includeImages: false,
+      maxResults: 5,
+    });
+
+    // 出典URLと要約だけに絞ることで最終回答が裏付けを示しやすくなる。
+    return {
+      results: results.map((item) => ({
+        title: item.title,
+        url: item.url,
+        content: item.content,
+      })),
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
+  }
+}
+
+function printIntermediateSteps(steps: ToolCallLog[]) {
+  if (!steps.length) return;
+
+  console.log('\n=== 生成されたステップ ===\n');
+  steps.forEach((step, index) => {
+    const serializedInput = typeof step.input === 'string' ? step.input : JSON.stringify(step.input);
+    const serializedOutput = typeof step.output === 'string' ? step.output : JSON.stringify(step.output);
+    console.log(`[${index + 1}] tool=${step.tool}\n    input=${serializedInput}\n    output=${serializedOutput}\n`);
+  });
+}
 
 function contentToText(content: string | ContentBlock[]): string {
   if (typeof content === 'string') {
@@ -61,23 +206,12 @@ function contentToText(content: string | ContentBlock[]): string {
           const { reasoning } = block as ContentBlock.Reasoning;
           return `\n[Reasoning]\n${reasoning}\n[/Reasoning]\n`;
         }
-        default:
-          return `\n[${block.type ?? 'unknown'}]\n${JSON.stringify(block)}\n`;
       }
+      return '';
     })
     .filter(Boolean)
     .join('');
 }
 
-function printToolCalls(toolCalls: unknown) {
-  if (!Array.isArray(toolCalls) || !toolCalls.length) return;
-
-  console.log('\n=== 生成されたツール呼び出し ===\n');
-  toolCalls.forEach((call, index) => {
-    console.log(`[${index + 1}]`, JSON.stringify(call, null, 2), '\n');
-  });
-}
-
-// 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ -> 3,180 × 8,463 = 26,912,340m or 3,180 × 8,465 = 26,982,300m
+// 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ -> 3,180 × 8,463 = 26,912,340m or 3,180 × 8,465 = 26,982,300m or 3,180 × 8,481 = 26,969,580m
 // 例2: 日本で6番目に高い山の標高から2025年の自民党の総裁選挙の決選投票における高市早苗氏の得票数を引いた結果は？ -> 3141－185＝2956
-// 例3: 2025年の日本における再生可能エネルギー投資動向を調べて、主要な統計を計算し、Markdown形式で表を出力して
