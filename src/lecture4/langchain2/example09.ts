@@ -118,15 +118,20 @@ function createTavilySearchTool() {
     includeImageDescriptions: false,
   });
 
+  const schema = z
+    .object({
+      query: z.string().min(1).describe('検索エンジンに投げる日本語または英語のクエリ'),
+    })
+    .strict();
+
   return new DynamicStructuredTool({
     name: tavilyClient.name,
     description: tavilyClient.description,
-    schema: z
-      .object({
-        query: z.string().min(1).describe('検索エンジンに投げる日本語または英語のクエリ'),
-      })
-      .strict(),
-    func: async ({ query }) => sanitizeTavilySearchOutput(await tavilyClient.invoke({ query })),
+    schema,
+    func: async (input) => {
+      const { query } = schema.parse(input);
+      return sanitizeTavilySearchOutput(await tavilyClient.invoke({ query }));
+    },
   });
 }
 

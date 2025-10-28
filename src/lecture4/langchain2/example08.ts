@@ -107,16 +107,19 @@ function createBinaryOperationTool(
   description: string,
   operation: (term1: number, term2: number) => number
 ) {
+  const schema = z
+    .object({
+      term1: z.number().describe('演算で扱う1つ目の数値'),
+      term2: z.number().describe('演算で扱う2つ目の数値'),
+    })
+    .strict();
+
   return new DynamicStructuredTool({
     name,
     description,
-    schema: z
-      .object({
-        term1: z.number().describe('演算で扱う1つ目の数値'),
-        term2: z.number().describe('演算で扱う2つ目の数値'),
-      })
-      .strict(),
-    func: async ({ term1, term2 }) => {
+    schema,
+    func: async (input) => {
+      const { term1, term2 } = schema.parse(input);
       const result = operation(term1, term2);
       // LLMが不正な値を取り扱うと推論が破綻するため、有限値のみを返す。
       if (!Number.isFinite(result)) {

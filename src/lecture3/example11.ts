@@ -3,6 +3,10 @@
  */
 
 import type { Computer } from '@openai/agents';
+
+type ComputerButton = Parameters<Computer['click']>[2];
+type DragPath = Parameters<Computer['drag']>[0];
+
 import { Agent, computerTool, run } from '@openai/agents';
 import { chromium } from 'playwright';
 
@@ -77,6 +81,7 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
   await page.goto('https://www.hotpepper.jp/');
   console.log('[browser] Navigated to HotPepper landing page');
 
+  // The Computer type's index signature currently rejects literal environment keys, so we assert after constructing the full object.
   const computer: Computer = {
     environment: 'browser',
     dimensions: [viewportWidth, viewportHeight],
@@ -85,7 +90,7 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
       const buffer = await page.screenshot({ fullPage: true, type: 'png' });
       return buffer.toString('base64');
     },
-    async click(x, y, button) {
+    async click(x: number, y: number, button: ComputerButton) {
       console.log('[computer] Click action', { x, y, button });
       if (button === 'back') {
         await page.goBack().catch(() => {});
@@ -98,16 +103,16 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
       const mappedButton = button === 'wheel' ? 'middle' : button;
       await page.mouse.click(x, y, { button: mappedButton });
     },
-    async doubleClick(x, y) {
+    async doubleClick(x: number, y: number) {
       console.log('[computer] Double click action', { x, y });
       await page.mouse.dblclick(x, y);
     },
-    async scroll(x, y, scrollX, scrollY) {
+    async scroll(x: number, y: number, scrollX: number, scrollY: number) {
       console.log('[computer] Scroll action', { x, y, scrollX, scrollY });
       await page.mouse.move(x, y);
       await page.mouse.wheel(scrollX, scrollY);
     },
-    async type(text) {
+    async type(text: string) {
       console.log('[computer] Type action', { characters: text.length });
       await page.keyboard.type(text, { delay: 20 });
     },
@@ -115,11 +120,11 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
       console.log('[computer] Wait action (1s)');
       await page.waitForTimeout(1000);
     },
-    async move(x, y) {
+    async move(x: number, y: number) {
       console.log('[computer] Move action', { x, y });
       await page.mouse.move(x, y, { steps: 5 });
     },
-    async keypress(keys) {
+    async keypress(keys: string[]) {
       if (keys.length === 0) return;
       const normalized = keys.map(normalizeKey);
       const modifiers = normalized.slice(0, -1);
@@ -139,7 +144,7 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
         await page.keyboard.up(key);
       }
     },
-    async drag(path) {
+    async drag(path: DragPath) {
       if (path.length === 0) return;
       const firstPoint = path[0];
       if (!firstPoint) return;
@@ -155,7 +160,7 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
   };
 
   return {
-    computer,
+    computer: computer as Computer,
     async dispose() {
       console.log('[computer] Disposing computer session');
       console.log('[browser] Closing context and browser');

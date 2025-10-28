@@ -126,15 +126,18 @@ function createTavilySearchTool() {
     includeImageDescriptions: false,
   });
 
+  const schema = z
+    .object({
+      query: z.string().min(1).describe('検索する日本語もしくは英語のクエリ'),
+    })
+    .strict();
+
   return new DynamicStructuredTool({
     name: tavilyClient.name,
     description: tavilyClient.description,
-    schema: z
-      .object({
-        query: z.string().min(1).describe('検索する日本語もしくは英語のクエリ'),
-      })
-      .strict(),
-    func: async ({ query }) => {
+    schema,
+    func: async (input) => {
+      const { query } = schema.parse(input);
       console.log('\n[tool] tavily_search');
       console.log(`[tool] input: ${JSON.stringify({ query })}`);
 
@@ -151,16 +154,19 @@ function createBinaryOperationTool(
   description: string,
   operation: (term1: number, term2: number) => number
 ) {
+  const schema = z
+    .object({
+      term1: z.number().describe('演算で扱う1つ目の数値'),
+      term2: z.number().describe('演算で扱う2つ目の数値'),
+    })
+    .strict();
+
   return new DynamicStructuredTool({
     name,
     description,
-    schema: z
-      .object({
-        term1: z.number().describe('演算で扱う1つ目の数値'),
-        term2: z.number().describe('演算で扱う2つ目の数値'),
-      })
-      .strict(),
-    func: async ({ term1, term2 }) => {
+    schema,
+    func: async (input) => {
+      const { term1, term2 } = schema.parse(input);
       console.log(`\n[tool] ${name}`);
       console.log(`[tool] input: ${JSON.stringify({ term1, term2 })}`);
 
