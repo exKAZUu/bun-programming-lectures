@@ -21,7 +21,7 @@ try {
   });
   await runAgent(
     agent,
-    '架空の10人分の4科目のテストの点数を生成して、 `/Users/exkazuu/ghq/github.com/exKAZUu/intro-to-ai-agent-dev/src/lecture3/scores.xlsx` というファイルのScoresシートに保存して。'
+    '架空の10人分の4科目のテストの点数を生成して、 `/Users/exkazuu/ghq/github.com/exKAZUu/intro-to-ai-agent-dev/src/lecture4/scores.xlsx` というファイルのScoresシートに保存して。'
   );
 } finally {
   await mcpServer.close();

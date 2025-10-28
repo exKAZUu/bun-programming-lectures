@@ -81,8 +81,7 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
   await page.goto('https://www.hotpepper.jp/');
   console.log('[browser] Navigated to HotPepper landing page');
 
-  // The Computer type's index signature currently rejects literal environment keys, so we assert after constructing the full object.
-  const computer: Computer = {
+  const computer = {
     environment: 'browser',
     dimensions: [viewportWidth, viewportHeight],
     async screenshot() {
@@ -157,10 +156,11 @@ async function createPlaywrightComputer(): Promise<{ computer: Computer; dispose
       }
       await page.mouse.up();
     },
-  };
+    // Deal with type errors ...
+  } as Computer;
 
   return {
-    computer: computer as Computer,
+    computer,
     async dispose() {
       console.log('[computer] Disposing computer session');
       console.log('[browser] Closing context and browser');
