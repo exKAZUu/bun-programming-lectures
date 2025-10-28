@@ -1,4 +1,4 @@
-import { type BaseMessage, HumanMessage, isHumanMessage } from '@langchain/core/messages';
+import { type AIMessage, type BaseMessage, HumanMessage, isAIMessage, isHumanMessage } from '@langchain/core/messages';
 import { Annotation, END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { ChatOpenAI } from '@langchain/openai';
@@ -105,15 +105,11 @@ function createDomainWorkflowGraph() {
 
 async function suggestDomains(state: typeof DomainWorkflowState.State) {
   const agentState = await domainSuggesterAgent.invoke({ messages: state.messages });
-
-  if (agentState.structuredResponse == null) {
-    throw new Error('ドメイン候補の取得に失敗しました。');
-  }
-
+  const suggestion = parseSuggestion(agentState.messages);
   return {
     messages: extractNewMessages(state.messages, agentState.messages),
-    suggestions: agentState.structuredResponse.domain_cnadidates,
-    webServiceContent: agentState.structuredResponse.web_service_content,
+    suggestions: suggestion.domain_cnadidates,
+    webServiceContent: suggestion.web_service_content,
   };
 }
 
@@ -124,15 +120,11 @@ async function selectDomain(state: typeof DomainWorkflowState.State) {
 
   const selectionPrompt = new HumanMessage(formatSelectionPrompt(state));
   const agentState = await domainSelectorAgent.invoke({ messages: [selectionPrompt] });
-
-  if (agentState.structuredResponse == null) {
-    throw new Error('ドメインの選定に失敗しました。');
-  }
-
+  const selection = parseSelection(agentState.messages);
   return {
     messages: agentState.messages,
-    selectedDomain: agentState.structuredResponse.domain_to_register,
-    selectionReason: agentState.structuredResponse.reason,
+    selectedDomain: selection.domain_to_register,
+    selectionReason: selection.reason,
   };
 }
 
@@ -159,4 +151,55 @@ function extractNewMessages(previous: BaseMessage[], updated: BaseMessage[]): Ba
 
 function formatSelectionResult(domain: string, reason: string): string {
   return `選定ドメイン: ${domain}\n理由: ${reason}`;
+}
+
+function parseSuggestion(messages: BaseMessage[]): DomainSuggestion {
+  const aiMessage = findLastAIMessage(messages);
+  return parseJson(aiMessage, DomainSuggestionSchema, 'ドメイン候補の解析に失敗しました');
+}
+
+function parseSelection(messages: BaseMessage[]): DomainSelection {
+  const aiMessage = findLastAIMessage(messages);
+  return parseJson(aiMessage, DomainSelectionSchema, 'ドメインの選定結果を解析できませんでした');
+}
+
+function findLastAIMessage(messages: BaseMessage[]): AIMessage {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message != null && isAIMessage(message)) {
+      return message;
+    }
+  }
+  throw new Error('AIメッセージが見つかりませんでした。');
+}
+
+function parseJson<T>(message: AIMessage, schema: z.ZodType<T>, parseErrorMessage: string): T {
+  const raw = messageContentToString(message);
+  try {
+    const parsed = schema.parse(JSON.parse(raw));
+    return parsed;
+  } catch (error) {
+    throw new Error(`${parseErrorMessage}: ${raw}`);
+  }
+}
+
+function messageContentToString(message: AIMessage): string {
+  if (typeof message.content === 'string') {
+    return message.content;
+  }
+  return message.content
+    .map((block: unknown) => {
+      if (typeof block === 'string') {
+        return block;
+      }
+      if (typeof block === 'object' && block != null && 'text' in block) {
+        const candidate = (block as { text?: unknown }).text;
+        if (typeof candidate === 'string') {
+          return candidate;
+        }
+      }
+      return '';
+    })
+    .join('')
+    .trim();
 }
