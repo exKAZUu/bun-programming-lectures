@@ -60,6 +60,6 @@ export const runWorkflow = async (workflow: WorkflowInput) => {
 };
 
 const result = await runWorkflow({
-  input_as_text: '早稲田大学とAIに関連するドメイン名で、まだ取得されていないものを3つ教えてください。',
+  input_as_text: '早稲田大学が研究するAI技術を紹介するWebサイト用のドメイン名で、まだ取得されていないものを3つ教えて',
 });
 console.info(result);
