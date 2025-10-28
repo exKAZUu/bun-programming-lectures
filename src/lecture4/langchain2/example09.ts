@@ -4,10 +4,8 @@
  */
 
 import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
-import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
-import { tavily } from '@tavily/core';
-import { z } from 'zod';
+import { TavilySearch } from '@langchain/tavily';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 process.env.TAVILY_API_KEY ||= 'tvly-<ここにTavilyのAPIキーを貼り付けてください>';
@@ -18,7 +16,6 @@ type ToolCallLog = {
   output: unknown;
 };
 
-const tvly = tavily();
 const tavilySearch = createTavilySearchTool();
 const tools = [tavilySearch];
 const toolMap = new Map(tools.map((tool) => [tool.name, tool] as const));
@@ -78,7 +75,19 @@ for (let turn = 0; turn < 8; turn++) {
       continue;
     }
 
-    const toolOutput = await tool.invoke(toolCall);
+    const toolInvoker = tool as unknown as { invoke: (input: unknown) => Promise<unknown> };
+
+    let toolOutput: unknown;
+    try {
+      toolOutput = await toolInvoker.invoke(toolCall);
+    } catch (error) {
+      toolOutput = { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
+    }
+
+    if (tool instanceof TavilySearch) {
+      toolOutput = sanitizeTavilySearchOutput(toolOutput);
+    }
+
     steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
 
     const serializedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
@@ -101,38 +110,15 @@ if (finalResponse) {
   console.log('回答を生成できませんでした。');
 }
 
-function createTavilySearchTool() {
-  return new DynamicStructuredTool({
-    name: 'tavily_search',
-    description: '最新のウェブ検索結果を取得して、ユーザの質問に答えるための情報を探します。',
-    schema: z
-      .object({
-        query: z.string().min(1).describe('検索エンジンに投げる日本語または英語のクエリ'),
-      })
-      .strict(),
-    func: async ({ query }) => executeTavilySearch(query),
+function createTavilySearchTool(): TavilySearch {
+  return new TavilySearch({
+    maxResults: 5,
+    topic: 'general',
+    includeAnswer: false,
+    includeRawContent: false,
+    includeImages: false,
+    includeImageDescriptions: false,
   });
-}
-
-async function executeTavilySearch(query: string) {
-  try {
-    const { results } = await tvly.search(query, {
-      includeAnswer: false,
-      includeImages: false,
-      maxResults: 5,
-    });
-
-    // LLMに渡す情報量を絞ることで推論コストと誤情報の混入リスクを抑える。
-    return {
-      results: results.map((item) => ({
-        title: item.title,
-        url: item.url,
-        content: item.content,
-      })),
-    };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
-  }
 }
 
 function printIntermediateSteps(steps: ToolCallLog[]) {
@@ -166,6 +152,35 @@ function contentToText(content: string | ContentBlock[]): string {
     })
     .filter(Boolean)
     .join('');
+}
+
+function sanitizeTavilySearchOutput(output: unknown) {
+  if (!output || typeof output !== 'object') {
+    return output;
+  }
+
+  const candidates = (output as { results?: unknown }).results;
+  if (!Array.isArray(candidates)) {
+    return output;
+  }
+
+  const results = candidates
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const { title, url, content } = item as {
+        title?: unknown;
+        url?: unknown;
+        content?: unknown;
+      };
+      return {
+        title: typeof title === 'string' ? title : '',
+        url: typeof url === 'string' ? url : '',
+        content: typeof content === 'string' ? content : '',
+      };
+    })
+    .filter(Boolean);
+
+  return { results };
 }
 
 // 例1: 2025年のノーベル平和賞は誰が受賞した？

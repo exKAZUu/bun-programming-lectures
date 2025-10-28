@@ -19,7 +19,9 @@
   "prettier": "@willbooster/prettier-config",
   "dependencies": {
     "@langchain/core": "^1.0.2",
+    "@langchain/mcp-adapters": "^1.0.0",
     "@langchain/openai": "^1.0.0",
+    "@langchain/tavily": "^1.0.0",
     "@openai/agents": "0.1.10",
     "@tavily/core": "^0.5.12",
     "langchain": "^1.0.2",

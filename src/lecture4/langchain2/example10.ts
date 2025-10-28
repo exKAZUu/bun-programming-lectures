@@ -6,7 +6,7 @@
 import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
-import { tavily } from '@tavily/core';
+import { TavilySearch } from '@langchain/tavily';
 import { z } from 'zod';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
@@ -18,7 +18,6 @@ type ToolCallLog = {
   output: unknown;
 };
 
-const tvly = tavily();
 const tavilySearch = createTavilySearchTool();
 const add = createBinaryOperationTool('add', '2つの数値を加算します', (term1, term2) => term1 + term2);
 const sub = createBinaryOperationTool('sub', '2つの数値を減算します', (term1, term2) => term1 - term2);
@@ -84,8 +83,25 @@ for (let turn = 0; turn < 10; turn++) {
       continue;
     }
 
-    const toolInvoker = tool as { invoke: (input: unknown) => Promise<unknown> };
-    const toolOutput = await toolInvoker.invoke(toolCall);
+    const toolInvoker = tool as unknown as { invoke: (input: unknown) => Promise<unknown> };
+
+    if (tool instanceof TavilySearch) {
+      console.log('\n[tool] tavily_search');
+      console.log(`[tool] input: ${JSON.stringify(toolCall.args)}`);
+    }
+
+    let toolOutput: unknown;
+    try {
+      toolOutput = await toolInvoker.invoke(toolCall);
+    } catch (error) {
+      toolOutput = { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
+    }
+
+    if (tool instanceof TavilySearch) {
+      toolOutput = sanitizeTavilySearchOutput(toolOutput);
+      console.log('[tool] output:', JSON.stringify(toolOutput, null, 2));
+    }
+
     steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
 
     const serializedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
@@ -108,23 +124,16 @@ if (finalResponse) {
   console.log('回答を生成できませんでした。');
 }
 
-function createTavilySearchTool() {
-  return new DynamicStructuredTool({
+function createTavilySearchTool(): TavilySearch {
+  return new TavilySearch({
     name: 'tavily_search',
     description: '最新のウェブ検索結果から山の標高などの事実を調べます。',
-    schema: z
-      .object({
-        query: z.string().min(1).describe('検索する日本語もしくは英語のクエリ'),
-      })
-      .strict(),
-    func: async ({ query }) => {
-      console.log('\n[tool] tavily_search');
-      console.log(`[tool] input: ${JSON.stringify({ query })}`);
-
-      const result = await executeTavilySearch(query);
-      console.log('[tool] output:', JSON.stringify(result, null, 2));
-      return result;
-    },
+    maxResults: 5,
+    topic: 'general',
+    includeAnswer: false,
+    includeRawContent: false,
+    includeImages: false,
+    includeImageDescriptions: false,
   });
 }
 
@@ -159,27 +168,6 @@ function createBinaryOperationTool(
   });
 }
 
-async function executeTavilySearch(query: string) {
-  try {
-    const { results } = await tvly.search(query, {
-      includeAnswer: false,
-      includeImages: false,
-      maxResults: 5,
-    });
-
-    // 出典URLと要約だけに絞ることで最終回答が裏付けを示しやすくなる。
-    return {
-      results: results.map((item) => ({
-        title: item.title,
-        url: item.url,
-        content: item.content,
-      })),
-    };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
-  }
-}
-
 function printIntermediateSteps(steps: ToolCallLog[]) {
   if (!steps.length) return;
 
@@ -211,6 +199,35 @@ function contentToText(content: string | ContentBlock[]): string {
     })
     .filter(Boolean)
     .join('');
+}
+
+function sanitizeTavilySearchOutput(output: unknown) {
+  if (!output || typeof output !== 'object') {
+    return output;
+  }
+
+  const candidates = (output as { results?: unknown }).results;
+  if (!Array.isArray(candidates)) {
+    return output;
+  }
+
+  const results = candidates
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const { title, url, content } = item as {
+        title?: unknown;
+        url?: unknown;
+        content?: unknown;
+      };
+      return {
+        title: typeof title === 'string' ? title : '',
+        url: typeof url === 'string' ? url : '',
+        content: typeof content === 'string' ? content : '',
+      };
+    })
+    .filter(Boolean);
+
+  return { results };
 }
 
 // 例1: 日本で5番目に高い山と世界で5番目に高い山の標高を乗じた結果は？ ->
