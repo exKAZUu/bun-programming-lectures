@@ -24,7 +24,7 @@ for (let i = 0; i < 3; i++) {
   logs.push({ role: 'user', content: userMessage });
 
   const response = await model.invoke(messages);
-  const outputText = standardContentToText(response.content);
+  const outputText = contentToText(response.content);
 
   messages.push(response);
   logs.push({ role: 'assistant', content: outputText });
