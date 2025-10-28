@@ -25,6 +25,20 @@ const DomainSelectionSchema = z.object({
 
 type DomainSuggestion = z.infer<typeof DomainSuggestionSchema>;
 type DomainSelection = z.infer<typeof DomainSelectionSchema>;
+type DomainWorkflowComponents = {
+  suggesterAgent: ReactAgent<ResponseFormatUndefined>;
+  selectorAgent: ReactAgent<ResponseFormatUndefined>;
+  graph: ReturnType<typeof createDomainWorkflowGraph>;
+};
+type DomainWorkflowRuntime = {
+  components?: DomainWorkflowComponents;
+  toolsClient?: MultiServerMCPClient;
+  toolsCache: DynamicStructuredTool[] | null;
+};
+
+const domainWorkflowRuntime: DomainWorkflowRuntime = {
+  toolsCache: null,
+};
 
 const DomainWorkflowState = Annotation.Root({
   messages: MessagesAnnotation.spec.messages,
@@ -46,21 +60,12 @@ const DomainWorkflowState = Annotation.Root({
   }),
 });
 
-let domainSuggesterAgent: ReactAgent<ResponseFormatUndefined> | undefined;
-let domainSelectorAgent: ReactAgent<ResponseFormatUndefined> | undefined;
-let domainWorkflowGraph: ReturnType<typeof createDomainWorkflowGraph> | undefined;
-let domainToolsClient: MultiServerMCPClient | undefined;
-let cachedDomainTools: DynamicStructuredTool[] | null = null;
-
 type WorkflowInput = { input_as_text: string };
 
 export const runWorkflow = async (workflow: WorkflowInput) => {
-  await ensureWorkflowInitialized();
-  if (domainWorkflowGraph == null) {
-    throw new Error('ワークフローを初期化できませんでした。');
-  }
+  const components = await ensureWorkflowInitialized();
   const initialMessages = [new HumanMessage(workflow.input_as_text)];
-  const finalState = await domainWorkflowGraph.invoke({ messages: initialMessages });
+  const finalState = await components.graph.invoke({ messages: initialMessages });
 
   if (finalState.selectedDomain == null || finalState.selectionReason == null) {
     throw new Error('ドメイン選定に失敗しました。');
@@ -96,10 +101,8 @@ function createDomainWorkflowGraph() {
 }
 
 async function suggestDomains(state: typeof DomainWorkflowState.State) {
-  if (domainSuggesterAgent == null) {
-    throw new Error('Domain suggester agent is not ready.');
-  }
-  const agentState = await domainSuggesterAgent.invoke({ messages: state.messages });
+  const { suggesterAgent } = getDomainWorkflowComponents();
+  const agentState = await suggesterAgent.invoke({ messages: state.messages });
   const suggestion = parseSuggestion(agentState.messages);
   return {
     messages: extractNewMessages(state.messages, agentState.messages),
@@ -109,15 +112,13 @@ async function suggestDomains(state: typeof DomainWorkflowState.State) {
 }
 
 async function selectDomain(state: typeof DomainWorkflowState.State) {
-  if (domainSelectorAgent == null) {
-    throw new Error('Domain selector agent is not ready.');
-  }
   if (state.suggestions.length === 0) {
     throw new Error('ドメイン候補が存在しません。');
   }
 
   const selectionPrompt = new HumanMessage(formatSelectionPrompt(state));
-  const agentState = await domainSelectorAgent.invoke({ messages: [selectionPrompt] });
+  const { selectorAgent } = getDomainWorkflowComponents();
+  const agentState = await selectorAgent.invoke({ messages: [selectionPrompt] });
   const selection = parseSelection(agentState.messages);
   return {
     messages: agentState.messages,
@@ -151,36 +152,36 @@ function formatSelectionResult(domain: string, reason: string): string {
   return `選定ドメイン: ${domain}\n理由: ${reason}`;
 }
 
-async function ensureWorkflowInitialized() {
-  if (domainWorkflowGraph != null && domainSuggesterAgent != null && domainSelectorAgent != null) {
-    return;
+async function ensureWorkflowInitialized(): Promise<DomainWorkflowComponents> {
+  if (domainWorkflowRuntime.components != null) {
+    return domainWorkflowRuntime.components;
   }
 
   const tools = await loadDomainTools();
+  const components: DomainWorkflowComponents = {
+    suggesterAgent: buildDomainSuggesterAgent(tools),
+    selectorAgent: buildDomainSelectorAgent(),
+    graph: createDomainWorkflowGraph(),
+  };
 
-  domainSuggesterAgent = createAgent({
-    model: new ChatOpenAI({ model: 'gpt-5-mini' }),
-    tools,
-    systemPrompt:
-      'あなたはドメイン名を提案するアシスタントです。ユーザが説明したWebサービスの内容を踏まえて、findadomain MCP サーバーのツールを使って空き状況を確認し、取得候補を5件提案してください。結果は domain_cnadidates（文字列の配列）と web_service_content（要約テキスト）のJSONで出力してください。',
-  });
+  domainWorkflowRuntime.components = components;
+  return components;
+}
 
-  domainSelectorAgent = createAgent({
-    model: new ChatOpenAI({ model: 'gpt-5' }),
-    systemPrompt:
-      'あなたは取得すべきドメインを選定するアシスタントです。与えられた候補から1つだけ選び、選定理由を日本語で説明してください。回答は domain_to_register と reason を持つJSONで返してください。',
-  });
-
-  domainWorkflowGraph = createDomainWorkflowGraph();
+function getDomainWorkflowComponents(): DomainWorkflowComponents {
+  if (domainWorkflowRuntime.components == null) {
+    throw new Error('Domain workflow is not initialized.');
+  }
+  return domainWorkflowRuntime.components;
 }
 
 async function loadDomainTools() {
-  if (cachedDomainTools != null) {
-    return cachedDomainTools;
+  if (domainWorkflowRuntime.toolsCache != null) {
+    return domainWorkflowRuntime.toolsCache;
   }
 
-  if (domainToolsClient == null) {
-    domainToolsClient = new MultiServerMCPClient({
+  if (domainWorkflowRuntime.toolsClient == null) {
+    domainWorkflowRuntime.toolsClient = new MultiServerMCPClient({
       useStandardContentBlocks: true,
       mcpServers: {
         find_a_domain: {
@@ -193,7 +194,7 @@ async function loadDomainTools() {
 
   try {
     const tools = await promiseWithTimeout(
-      domainToolsClient
+      domainWorkflowRuntime.toolsClient
         .getTools(['find_a_domain'])
         .then((loadedTools) => loadedTools.filter((tool) => tool.name === 'check_domain' || tool.name === 'list_tlds')),
       15000,
@@ -203,15 +204,16 @@ async function loadDomainTools() {
     if (tools.length === 0) {
       console.warn('find_a_domain MCPのツールが取得できなかったため、LLMのみで候補を生成します。');
     }
-    cachedDomainTools = tools;
+
+    domainWorkflowRuntime.toolsCache = tools;
     return tools;
   } catch (error) {
     console.warn('find_a_domain MCP サーバーに接続できなかったため、LLMのみで候補を生成します。', error);
-    await domainToolsClient?.close().catch(() => {
+    await domainWorkflowRuntime.toolsClient?.close().catch(() => {
       // ignore close errors
     });
-    domainToolsClient = undefined;
-    cachedDomainTools = null;
+    domainWorkflowRuntime.toolsClient = undefined;
+    domainWorkflowRuntime.toolsCache = null;
     return [];
   }
 }
@@ -327,4 +329,21 @@ function extractJsonPayload(raw: string): string | null {
   }
 
   return null;
+}
+
+function buildDomainSuggesterAgent(tools: DynamicStructuredTool[]) {
+  return createAgent({
+    model: new ChatOpenAI({ model: 'gpt-5-mini' }),
+    tools,
+    systemPrompt:
+      'あなたはドメイン名を提案するアシスタントです。ユーザが説明したWebサービスの内容を踏まえて、findadomain MCP サーバーのツールを使って空き状況を確認し、取得候補を5件提案してください。結果は domain_cnadidates（文字列の配列）と web_service_content（要約テキスト）のJSONで出力してください。',
+  });
+}
+
+function buildDomainSelectorAgent() {
+  return createAgent({
+    model: new ChatOpenAI({ model: 'gpt-5' }),
+    systemPrompt:
+      'あなたは取得すべきドメインを選定するアシスタントです。与えられた候補から1つだけ選び、選定理由を日本語で説明してください。回答は domain_to_register と reason を持つJSONで返してください。',
+  });
 }
