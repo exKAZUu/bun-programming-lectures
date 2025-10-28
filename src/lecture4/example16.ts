@@ -159,14 +159,14 @@ async function ensureWorkflowInitialized() {
   const tools = await loadDomainTools();
 
   domainSuggesterAgent = createAgent({
-    model: new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0 }),
+    model: new ChatOpenAI({ model: 'gpt-5-mini' }),
     tools,
     systemPrompt:
       'あなたはドメイン名を提案するアシスタントです。ユーザが説明したWebサービスの内容を踏まえて、findadomain MCP サーバーのツールを使って空き状況を確認し、取得候補を5件提案してください。結果は domain_cnadidates（文字列の配列）と web_service_content（要約テキスト）のJSONで出力してください。',
   });
 
   domainSelectorAgent = createAgent({
-    model: new ChatOpenAI({ model: 'gpt-4o', temperature: 0 }),
+    model: new ChatOpenAI({ model: 'gpt-5' }),
     systemPrompt:
       'あなたは取得すべきドメインを選定するアシスタントです。与えられた候補から1つだけ選び、選定理由を日本語で説明してください。回答は domain_to_register と reason を持つJSONで返してください。',
   });
