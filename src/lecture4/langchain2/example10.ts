@@ -85,21 +85,11 @@ for (let turn = 0; turn < 10; turn++) {
 
     const toolInvoker = tool as unknown as { invoke: (input: unknown) => Promise<unknown> };
 
-    if (tool instanceof TavilySearch) {
-      console.log('\n[tool] tavily_search');
-      console.log(`[tool] input: ${JSON.stringify(toolCall.args)}`);
-    }
-
     let toolOutput: unknown;
     try {
       toolOutput = await toolInvoker.invoke(toolCall);
     } catch (error) {
       toolOutput = { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
-    }
-
-    if (tool instanceof TavilySearch) {
-      toolOutput = sanitizeTavilySearchOutput(toolOutput);
-      console.log('[tool] output:', JSON.stringify(toolOutput, null, 2));
     }
 
     steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
@@ -124,8 +114,8 @@ if (finalResponse) {
   console.log('回答を生成できませんでした。');
 }
 
-function createTavilySearchTool(): TavilySearch {
-  return new TavilySearch({
+function createTavilySearchTool() {
+  const tavilyClient = new TavilySearch({
     name: 'tavily_search',
     description: '最新のウェブ検索結果から山の標高などの事実を調べます。',
     maxResults: 5,
@@ -134,6 +124,25 @@ function createTavilySearchTool(): TavilySearch {
     includeRawContent: false,
     includeImages: false,
     includeImageDescriptions: false,
+  });
+
+  return new DynamicStructuredTool({
+    name: tavilyClient.name,
+    description: tavilyClient.description,
+    schema: z
+      .object({
+        query: z.string().min(1).describe('検索する日本語もしくは英語のクエリ'),
+      })
+      .strict(),
+    func: async ({ query }) => {
+      console.log('\n[tool] tavily_search');
+      console.log(`[tool] input: ${JSON.stringify({ query })}`);
+
+      const raw = await tavilyClient.invoke({ query });
+      const sanitized = sanitizeTavilySearchOutput(raw);
+      console.log('[tool] output:', JSON.stringify(sanitized, null, 2));
+      return sanitized;
+    },
   });
 }
 

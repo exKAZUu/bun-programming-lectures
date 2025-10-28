@@ -4,8 +4,10 @@
  */
 
 import { AIMessage, type BaseMessageLike, type ContentBlock, ToolMessage } from '@langchain/core/messages';
+import { DynamicStructuredTool } from '@langchain/core/tools';
 import { ChatOpenAI } from '@langchain/openai';
 import { TavilySearch } from '@langchain/tavily';
+import { z } from 'zod';
 
 process.env.OPENAI_API_KEY ||= '<ここにOpenAIのAPIキーを貼り付けてください>';
 process.env.TAVILY_API_KEY ||= 'tvly-<ここにTavilyのAPIキーを貼り付けてください>';
@@ -84,10 +86,6 @@ for (let turn = 0; turn < 8; turn++) {
       toolOutput = { error: error instanceof Error ? error.message : 'tavily検索に失敗しました。' };
     }
 
-    if (tool instanceof TavilySearch) {
-      toolOutput = sanitizeTavilySearchOutput(toolOutput);
-    }
-
     steps.push({ tool: toolCall.name, input: toolCall.args, output: toolOutput });
 
     const serializedOutput = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
@@ -110,14 +108,25 @@ if (finalResponse) {
   console.log('回答を生成できませんでした。');
 }
 
-function createTavilySearchTool(): TavilySearch {
-  return new TavilySearch({
+function createTavilySearchTool() {
+  const tavilyClient = new TavilySearch({
     maxResults: 5,
     topic: 'general',
     includeAnswer: false,
     includeRawContent: false,
     includeImages: false,
     includeImageDescriptions: false,
+  });
+
+  return new DynamicStructuredTool({
+    name: tavilyClient.name,
+    description: tavilyClient.description,
+    schema: z
+      .object({
+        query: z.string().min(1).describe('検索エンジンに投げる日本語または英語のクエリ'),
+      })
+      .strict(),
+    func: async ({ query }) => sanitizeTavilySearchOutput(await tavilyClient.invoke({ query })),
   });
 }
 
